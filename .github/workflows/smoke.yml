@@ -1,0 +1,41 @@
+# Runs in the standalone Action repo, not here: GitHub only reads .github/workflows at a
+# repository root, so this file is inert in the monorepo and live once publish-repo.mjs copies it.
+# It is the only test that exercises the committed bundle on a real runner with no node_modules.
+name: smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A generator's real output, not a fixture: the parser has to survive whatever cdxgen
+      # emits today, and it is deliberately unpinned so a changed shape shows up here first.
+      # This repo carries no manifests, so the SBOM is taken from a throwaway project.
+      - name: Generate an SBOM
+        run: |
+          mkdir -p /tmp/probe && cd /tmp/probe
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund zod@3 yaml@2 > /dev/null
+          npx --yes @cyclonedx/cdxgen -o "$GITHUB_WORKSPACE/sbom.json" .
+
+      - uses: ./
+        with:
+          sbom-path: sbom.json
+          comment: false
+
+      # The action never fails your build (README promise), so a green job proves nothing on its
+      # own - assert the report was written and that the SBOM parsed into components.
+      - name: Assert the report is real
+        run: |
+          grep -q 'CRA readiness report' "$GITHUB_STEP_SUMMARY"
+          grep -q 'Format: \*\*cyclonedx' "$GITHUB_STEP_SUMMARY"
+          grep -qE '^\| [1-9][0-9]* \|' "$GITHUB_STEP_SUMMARY"
