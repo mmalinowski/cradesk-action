@@ -1,0 +1,14 @@
+CRA Desk — CRA readiness report (GitHub Action)
+Copyright 2026 CloudSoft Marcin Malinowski
+
+Licensed under the Apache License, Version 2.0. See the LICENSE file.
+
+The distributed dist/index.cjs is a bundle: it inlines third-party npm packages whose
+licences are reproduced in full in THIRD-PARTY-LICENSES.md, generated from the packages
+actually included in the bundle.
+
+The CRA classification rules and readiness checklist are derived from the official texts of
+Regulation (EU) 2024/2847 (Cyber Resilience Act) and Commission Implementing Regulation (EU)
+2025/2392, © European Union, source: EUR-Lex (https://eur-lex.europa.eu). Only the European
+Union's own texts as published on EUR-Lex are authentic; this software's summaries and
+citations are not, and are not legal advice.

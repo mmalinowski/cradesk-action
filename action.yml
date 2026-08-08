@@ -1,0 +1,32 @@
+name: 'CRA readiness report'
+description: 'Turns a CycloneDX or SPDX SBOM into a Cyber Resilience Act readiness report in your job summary.'
+author: 'CRA Desk'
+branding:
+  icon: 'shield'
+  color: 'orange'
+
+inputs:
+  sbom-path:
+    description: >-
+      Path to a CycloneDX or SPDX JSON SBOM. Accepts a comma-separated list and one `*` in the final segment (e.g. `build/*.cdx.json`). Without it the report explains how to generate one.
+
+    required: false
+  config-path:
+    description: >-
+      Path to the CRA Desk config that answers the classifier questions and the checklist items CI cannot know.
+
+    required: false
+    default: 'cradesk.yml'
+  comment:
+    description: 'Post the report as a pull-request comment when a token is available.'
+    required: false
+    default: 'true'
+  github-token:
+    description: >-
+      Token used only to post the pull-request comment. Needs `pull-requests: write`. Omit it and the report goes to the job summary only.
+
+    required: false
+
+runs:
+  using: 'node24'
+  main: 'dist/index.cjs'
