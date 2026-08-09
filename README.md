@@ -71,7 +71,7 @@ operative provision, the report says so.
 
 ## Formats
 
-CycloneDX 1.5 and 1.6, SPDX 2.3 - JSON only. XML and SPDX tag-value are detected and explained
+CycloneDX 1.5, 1.6 and 1.7, SPDX 2.3 - JSON only. XML and SPDX tag-value are detected and explained
 rather than mis-parsed.
 
 ## What ships here

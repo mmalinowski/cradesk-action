@@ -11400,14 +11400,11 @@ var NEVER = INVALID;
 
 // ../../shared/cradesk-core/src/content/citation.ts
 var citedActSchema = external_exports.enum([
-  // Regulation (EU) 2024/2847 (CRA)
+  // Regulation (EU) 2024/2847
   "cra",
-  // Commission Implementing Regulation (EU) 2025/2392 — technical description of the
-  // Annex III/IV categories
+  // Implementing Regulation (EU) 2025/2392: technical description of the Annex III/IV categories
   "cra-ir-2025-2392",
-  // Commission guidance C(2026) 5252
   "cra-guidance-c-2026-5252",
-  // ENISA Single Reporting Platform guidance
   "enisa-srp"
 ]);
 var citationSchema = external_exports.object({
@@ -11632,8 +11629,7 @@ function classify(input, ruleset) {
         {
           code: "browser-only-saas-outside-scope",
           citation: craCitation("Article 3(1) and (2)"),
-          // Rests on guidance C(2026) 5252, approved as a draft on 2026-07-27 with formal
-          // adoption pending the remaining language versions (step P1).
+          // Rests on guidance C(2026) 5252, not on an operative provision.
           status: "gap-to-verify"
         },
         { code: "consider-nis2-instead", citation: craCitation("Article 3(2)"), status: "gap-to-verify" }
@@ -11718,8 +11714,7 @@ var checkKindSchema = external_exports.enum(["auto", "answer"]);
 var autoCheckSchema = external_exports.enum(["sbom-parsed", "purl-coverage", "versions-known", "dependency-graph"]);
 var checklistItemSchema = external_exports.object({
   slug: external_exports.string().min(1),
-  // English prose: the readiness report is a content artifact, not a verdict (D18). The
-  // classifier's verdict stays code-only and is localised by the frontend.
+  // English prose: the readiness report is a content artifact, not a verdict (D18).
   title: external_exports.string().min(1),
   why: external_exports.string().min(1),
   evidence: external_exports.string().min(1),
@@ -11772,8 +11767,8 @@ var READINESS_CHECKLIST_2026_08_08 = checklistSchema.parse({
       evidence: "Every component in the SBOM has a purl.",
       check: "auto",
       autoCheck: "purl-coverage",
-      // Not a requirement of the act: the act asks for a machine-readable SBOM, and purl is
-      // the practice that makes it usable. Kept as a gap rather than dressed up as a duty.
+      // The act asks for a machine-readable SBOM; purl is only the practice that makes it
+      // usable, which is why this is a gap and not a duty.
       citation: craCitation("Annex I, Part II, point 1"),
       status: "gap-to-verify"
     },
@@ -12230,6 +12225,110 @@ function composeReport(input) {
   };
 }
 
+// ../../shared/cradesk-core/src/sbom/cyclonedx.ts
+var CYCLONEDX_SUPPORTED_SPEC_VERSIONS = ["1.5", "1.6", "1.7"];
+var cyclonedxLicenseSchema = external_exports.union([
+  external_exports.object({ license: external_exports.object({ id: external_exports.string().optional(), name: external_exports.string().optional() }) }),
+  external_exports.object({ expression: external_exports.string() })
+]);
+var cyclonedxComponentSchema = external_exports.lazy(
+  () => external_exports.object({
+    name: external_exports.string(),
+    version: external_exports.string().optional(),
+    purl: external_exports.string().optional(),
+    licenses: external_exports.array(cyclonedxLicenseSchema).optional(),
+    components: external_exports.array(cyclonedxComponentSchema).optional()
+  })
+);
+var cyclonedxDocumentSchema = external_exports.object({
+  bomFormat: external_exports.literal("CycloneDX"),
+  specVersion: external_exports.string(),
+  metadata: external_exports.object({ component: external_exports.object({ name: external_exports.string().optional() }).optional() }).optional(),
+  components: external_exports.array(cyclonedxComponentSchema).optional(),
+  dependencies: external_exports.array(external_exports.unknown()).optional()
+});
+function licenseNames(licenses) {
+  if (licenses === void 0) {
+    return [];
+  }
+  return licenses.map((entry) => "expression" in entry ? entry.expression : entry.license.id ?? entry.license.name).filter((value) => value !== void 0 && value.length > 0);
+}
+function flatten(components, truncate) {
+  return components.flatMap((component) => [
+    {
+      name: truncate(component.name),
+      version: component.version === void 0 ? void 0 : truncate(component.version),
+      purl: component.purl === void 0 ? void 0 : truncate(component.purl),
+      licenses: licenseNames(component.licenses).map(truncate)
+    },
+    ...flatten(component.components ?? [], truncate)
+  ]);
+}
+function toInventory(document, truncate) {
+  const components = flatten(document.components ?? [], truncate).filter((component) => component.name.length > 0);
+  const hasDependencyGraph = (document.dependencies?.length ?? 0) > 0;
+  return {
+    format: "cyclonedx",
+    specVersion: document.specVersion,
+    documentName: document.metadata?.component?.name,
+    components,
+    quality: measureQuality(components, hasDependencyGraph)
+  };
+}
+
+// ../../shared/cradesk-core/src/sbom/spdx.ts
+var SPDX_SUPPORTED_SPEC_VERSIONS = ["SPDX-2.3"];
+var NOASSERTION = "NOASSERTION";
+var spdxPackageSchema = external_exports.object({
+  name: external_exports.string(),
+  versionInfo: external_exports.string().optional(),
+  licenseConcluded: external_exports.string().optional(),
+  licenseDeclared: external_exports.string().optional(),
+  externalRefs: external_exports.array(
+    external_exports.object({
+      referenceCategory: external_exports.string().optional(),
+      referenceType: external_exports.string().optional(),
+      referenceLocator: external_exports.string().optional()
+    })
+  ).optional()
+});
+var spdxDocumentSchema = external_exports.object({
+  spdxVersion: external_exports.string(),
+  name: external_exports.string().optional(),
+  packages: external_exports.array(spdxPackageSchema).optional(),
+  relationships: external_exports.array(external_exports.unknown()).optional()
+});
+function purlOf(spdxPackage) {
+  const reference = spdxPackage.externalRefs?.find((entry) => entry.referenceType === "purl");
+  return reference?.referenceLocator;
+}
+function licenseOf(spdxPackage) {
+  const declared = [spdxPackage.licenseConcluded, spdxPackage.licenseDeclared].find(
+    (value) => value !== void 0 && value.length > 0 && value !== NOASSERTION
+  );
+  return declared === void 0 ? [] : [declared];
+}
+function toInventory2(document, truncate) {
+  const components = (document.packages ?? []).filter((spdxPackage) => spdxPackage.name.length > 0).map((spdxPackage) => {
+    const version = spdxPackage.versionInfo;
+    const purl = purlOf(spdxPackage);
+    return {
+      name: truncate(spdxPackage.name),
+      version: version === void 0 || version === NOASSERTION ? void 0 : truncate(version),
+      purl: purl === void 0 ? void 0 : truncate(purl),
+      licenses: licenseOf(spdxPackage).map(truncate)
+    };
+  });
+  const hasDependencyGraph = (document.relationships?.length ?? 0) > 0;
+  return {
+    format: "spdx",
+    specVersion: document.spdxVersion,
+    documentName: document.name,
+    components,
+    quality: measureQuality(components, hasDependencyGraph)
+  };
+}
+
 // ../../shared/cradesk-core/src/report/text-en.ts
 var REASON_TEXT_EN = {
   "excluded-other-union-law": "The product is covered by other Union law that displaces the CRA for this product type.",
@@ -12274,7 +12373,11 @@ var SBOM_ERROR_TEXT_EN = {
   "xml-not-supported": "XML SBOMs are not read. Generate CycloneDX or SPDX in JSON.",
   "tag-value-not-supported": "SPDX tag-value files are not read. Generate SPDX in JSON (`--output spdx-json`).",
   "unknown-format": "The file is JSON but neither CycloneDX (`bomFormat`) nor SPDX (`spdxVersion`) could be detected.",
-  "unsupported-spec-version": "The specification version is not one this tool has been tested against (CycloneDX 1.5/1.6, SPDX 2.3).",
+  // Listed from the parser's own constants: a reader who hits this error acts on the list, so it
+  // must not survive a version being added or dropped.
+  "unsupported-spec-version": `The specification version is not one this tool has been tested against (CycloneDX ${CYCLONEDX_SUPPORTED_SPEC_VERSIONS.join(
+    "/"
+  )}, ${SPDX_SUPPORTED_SPEC_VERSIONS.join("/")}).`,
   "too-many-components": "The SBOM contains more components than this tool will read.",
   "invalid-structure": "The document is missing a field this tool needs, or a field has an unexpected type."
 };
@@ -12399,110 +12502,6 @@ var DEFAULT_SBOM_LIMITS = {
   maxFieldLength: 512
 };
 
-// ../../shared/cradesk-core/src/sbom/cyclonedx.ts
-var CYCLONEDX_SUPPORTED_SPEC_VERSIONS = ["1.5", "1.6"];
-var cyclonedxLicenseSchema = external_exports.union([
-  external_exports.object({ license: external_exports.object({ id: external_exports.string().optional(), name: external_exports.string().optional() }) }),
-  external_exports.object({ expression: external_exports.string() })
-]);
-var cyclonedxComponentSchema = external_exports.lazy(
-  () => external_exports.object({
-    name: external_exports.string(),
-    version: external_exports.string().optional(),
-    purl: external_exports.string().optional(),
-    licenses: external_exports.array(cyclonedxLicenseSchema).optional(),
-    components: external_exports.array(cyclonedxComponentSchema).optional()
-  })
-);
-var cyclonedxDocumentSchema = external_exports.object({
-  bomFormat: external_exports.literal("CycloneDX"),
-  specVersion: external_exports.string(),
-  metadata: external_exports.object({ component: external_exports.object({ name: external_exports.string().optional() }).optional() }).optional(),
-  components: external_exports.array(cyclonedxComponentSchema).optional(),
-  dependencies: external_exports.array(external_exports.unknown()).optional()
-});
-function licenseNames(licenses) {
-  if (licenses === void 0) {
-    return [];
-  }
-  return licenses.map((entry) => "expression" in entry ? entry.expression : entry.license.id ?? entry.license.name).filter((value) => value !== void 0 && value.length > 0);
-}
-function flatten(components, truncate) {
-  return components.flatMap((component) => [
-    {
-      name: truncate(component.name),
-      version: component.version === void 0 ? void 0 : truncate(component.version),
-      purl: component.purl === void 0 ? void 0 : truncate(component.purl),
-      licenses: licenseNames(component.licenses).map(truncate)
-    },
-    ...flatten(component.components ?? [], truncate)
-  ]);
-}
-function toInventory(document, truncate) {
-  const components = flatten(document.components ?? [], truncate).filter((component) => component.name.length > 0);
-  const hasDependencyGraph = (document.dependencies?.length ?? 0) > 0;
-  return {
-    format: "cyclonedx",
-    specVersion: document.specVersion,
-    documentName: document.metadata?.component?.name,
-    components,
-    quality: measureQuality(components, hasDependencyGraph)
-  };
-}
-
-// ../../shared/cradesk-core/src/sbom/spdx.ts
-var SPDX_SUPPORTED_SPEC_VERSIONS = ["SPDX-2.3"];
-var NOASSERTION = "NOASSERTION";
-var spdxPackageSchema = external_exports.object({
-  name: external_exports.string(),
-  versionInfo: external_exports.string().optional(),
-  licenseConcluded: external_exports.string().optional(),
-  licenseDeclared: external_exports.string().optional(),
-  externalRefs: external_exports.array(
-    external_exports.object({
-      referenceCategory: external_exports.string().optional(),
-      referenceType: external_exports.string().optional(),
-      referenceLocator: external_exports.string().optional()
-    })
-  ).optional()
-});
-var spdxDocumentSchema = external_exports.object({
-  spdxVersion: external_exports.string(),
-  name: external_exports.string().optional(),
-  packages: external_exports.array(spdxPackageSchema).optional(),
-  relationships: external_exports.array(external_exports.unknown()).optional()
-});
-function purlOf(spdxPackage) {
-  const reference = spdxPackage.externalRefs?.find((entry) => entry.referenceType === "purl");
-  return reference?.referenceLocator;
-}
-function licenseOf(spdxPackage) {
-  const declared = [spdxPackage.licenseConcluded, spdxPackage.licenseDeclared].find(
-    (value) => value !== void 0 && value.length > 0 && value !== NOASSERTION
-  );
-  return declared === void 0 ? [] : [declared];
-}
-function toInventory2(document, truncate) {
-  const components = (document.packages ?? []).filter((spdxPackage) => spdxPackage.name.length > 0).map((spdxPackage) => {
-    const version = spdxPackage.versionInfo;
-    const purl = purlOf(spdxPackage);
-    return {
-      name: truncate(spdxPackage.name),
-      version: version === void 0 || version === NOASSERTION ? void 0 : truncate(version),
-      purl: purl === void 0 ? void 0 : truncate(purl),
-      licenses: licenseOf(spdxPackage).map(truncate)
-    };
-  });
-  const hasDependencyGraph = (document.relationships?.length ?? 0) > 0;
-  return {
-    format: "spdx",
-    specVersion: document.spdxVersion,
-    documentName: document.name,
-    components,
-    quality: measureQuality(components, hasDependencyGraph)
-  };
-}
-
 // ../../shared/cradesk-core/src/sbom/normalize.ts
 var sbomParseErrorCodeSchema = external_exports.enum([
   "input-too-large",
@@ -12514,6 +12513,9 @@ var sbomParseErrorCodeSchema = external_exports.enum([
   "too-many-components",
   "invalid-structure"
 ]);
+function isSupported(supported, version) {
+  return supported.includes(version);
+}
 function truncator(limits) {
   return (value) => value.length <= limits.maxFieldLength ? value : value.slice(0, limits.maxFieldLength);
 }
@@ -12557,7 +12559,7 @@ function parseSbom(raw, limits = DEFAULT_SBOM_LIMITS) {
     if (!result.success) {
       return { ok: false, error: { code: "invalid-structure", detail: firstIssuePath(result.error) } };
     }
-    if (!CYCLONEDX_SUPPORTED_SPEC_VERSIONS.includes(result.data.specVersion)) {
+    if (!isSupported(CYCLONEDX_SUPPORTED_SPEC_VERSIONS, result.data.specVersion)) {
       return { ok: false, error: { code: "unsupported-spec-version", detail: result.data.specVersion } };
     }
     return withComponentLimit(toInventory(result.data, truncate), limits);
@@ -12567,7 +12569,7 @@ function parseSbom(raw, limits = DEFAULT_SBOM_LIMITS) {
     if (!result.success) {
       return { ok: false, error: { code: "invalid-structure", detail: firstIssuePath(result.error) } };
     }
-    if (!SPDX_SUPPORTED_SPEC_VERSIONS.includes(result.data.spdxVersion)) {
+    if (!isSupported(SPDX_SUPPORTED_SPEC_VERSIONS, result.data.spdxVersion)) {
       return { ok: false, error: { code: "unsupported-spec-version", detail: result.data.spdxVersion } };
     }
     return withComponentLimit(toInventory2(result.data, truncate), limits);
@@ -12656,7 +12658,7 @@ function readInputs(env) {
 var import_promises2 = require("node:fs/promises");
 
 // src/version.ts
-var ACTION_VERSION = "0.1.0";
+var ACTION_VERSION = "0.1.1";
 
 // src/pr-comment.ts
 var MARKER = "<!-- cradesk-action -->";
