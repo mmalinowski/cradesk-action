@@ -34,8 +34,17 @@ jobs:
 
       # The action never fails your build (README promise), so a green job proves nothing on its
       # own - assert the report was written and that the SBOM parsed into components.
+      #
+      # GitHub hands every step its own GITHUB_STEP_SUMMARY file, so the summary the step above
+      # wrote is unreadable here: run the same bundle again with the variable pointed at a file
+      # this step owns. INPUT_SBOM_PATH is the underscore spelling the CLI accepts for non-GitHub
+      # runners; dashes are awkward in a shell.
       - name: Assert the report is real
+        env:
+          INPUT_SBOM_PATH: sbom.json
+          INPUT_COMMENT: 'false'
         run: |
-          grep -q 'CRA readiness report' "$GITHUB_STEP_SUMMARY"
-          grep -q 'Format: \*\*cyclonedx' "$GITHUB_STEP_SUMMARY"
-          grep -qE '^\| [1-9][0-9]* \|' "$GITHUB_STEP_SUMMARY"
+          GITHUB_STEP_SUMMARY=report.md node dist/index.cjs > /dev/null
+          grep -q 'CRA readiness report' report.md
+          grep -q 'Format: \*\*cyclonedx' report.md
+          grep -qE '^\| [1-9][0-9]* \|' report.md
