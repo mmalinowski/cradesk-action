@@ -12114,6 +12114,29 @@ var CURRENT_RULESET = RULESET_2026_08_08;
 var languageSchema = external_exports.enum(["en", "pl"]);
 var LANGUAGES = languageSchema.options;
 
+// ../../shared/cradesk-core/src/ingest/wire.ts
+var ingestRequestSchema = external_exports.object({
+  productId: external_exports.string().uuid(),
+  productVersion: external_exports.string().min(1).optional(),
+  // The SBOM document itself, as sent by the caller — not yet parsed. Ingest parses it
+  // server-side (hostile input, hard rule 3); the Action never parses on the wire.
+  sbom: external_exports.string().min(1)
+});
+var ingestResponseSchema = external_exports.object({
+  sbomId: external_exports.string().uuid(),
+  // Same content hash seen before (ADR-2 D68) — the caller gets counts from the
+  // existing ingest, not a re-parse.
+  duplicate: external_exports.boolean(),
+  componentCount: external_exports.number().int().nonnegative(),
+  withPurl: external_exports.number().int().nonnegative(),
+  newComponents: external_exports.number().int().nonnegative(),
+  removedComponents: external_exports.number().int().nonnegative()
+});
+var ingestErrorSchema = external_exports.object({
+  errorCode: external_exports.string().min(1),
+  params: external_exports.record(external_exports.unknown()).optional()
+});
+
 // ../../shared/cradesk-core/src/sbom/inventory.ts
 var sbomFormatSchema = external_exports.enum(["cyclonedx", "spdx"]);
 var componentSchema = external_exports.object({
@@ -12636,7 +12659,13 @@ var actionInputsSchema = external_exports.object({
   sbomPath: external_exports.string().optional(),
   configPath: external_exports.string(),
   comment: external_exports.boolean(),
-  githubToken: external_exports.string().optional()
+  githubToken: external_exports.string().optional(),
+  // Upload to the CRA Desk panel (F3.3): token presence is what turns it on (D115) -
+  // apiUrl gets no default until the brand/domain decision (P13/P26) lands.
+  token: external_exports.string().optional(),
+  apiUrl: external_exports.string().optional(),
+  productId: external_exports.string().optional(),
+  productVersion: external_exports.string().optional()
 });
 function readEnvInput(env, name) {
   const upper = name.toUpperCase();
@@ -12650,7 +12679,11 @@ function readInputs(env) {
     configPath: readEnvInput(env, "config-path") ?? "cradesk.yml",
     // Commenting is opt-out, but it silently does nothing without a token (D22).
     comment: readEnvInput(env, "comment") !== "false",
-    githubToken: readEnvInput(env, "github-token")
+    githubToken: readEnvInput(env, "github-token"),
+    token: readEnvInput(env, "token"),
+    apiUrl: readEnvInput(env, "api-url"),
+    productId: readEnvInput(env, "product-id"),
+    productVersion: readEnvInput(env, "product-version")
   });
 }
 
@@ -12763,6 +12796,83 @@ async function appendStepSummary(markdown, env) {
   return true;
 }
 
+// src/upload.ts
+var import_node_zlib = require("node:zlib");
+var TOKEN_HEADER = "x-cradesk-token";
+function endpointUrl(apiUrl) {
+  return `${apiUrl.replace(/\/+$/, "")}/api/ingest`;
+}
+async function uploadSbom(inputs, sbom, fetchImpl = fetch) {
+  if (inputs.token === void 0) {
+    return { status: "skipped", reason: "no-token" };
+  }
+  if (inputs.apiUrl === void 0) {
+    return { status: "skipped", reason: "no-api-url" };
+  }
+  const parsedRequest = ingestRequestSchema.safeParse({
+    productId: inputs.productId,
+    productVersion: inputs.productVersion,
+    sbom
+  });
+  if (!parsedRequest.success) {
+    return { status: "failed", errorCode: "VALIDATION_FAILED" };
+  }
+  let response;
+  try {
+    response = await fetchImpl(endpointUrl(inputs.apiUrl), {
+      method: "POST",
+      headers: {
+        [TOKEN_HEADER]: inputs.token,
+        "content-type": "application/json",
+        "content-encoding": "gzip",
+        "user-agent": `cradesk-action/${ACTION_VERSION}`
+      },
+      // Gzip is required by arithmetic, not convenience (D112): the Function URL's 6 MB
+      // payload limit leaves ~4.5 MB once base64-encoded, below the parser's own 16 MB cap.
+      body: (0, import_node_zlib.gzipSync)(Buffer.from(JSON.stringify(parsedRequest.data), "utf-8"))
+    });
+  } catch {
+    return { status: "failed", errorCode: "NETWORK_ERROR" };
+  }
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    return { status: "failed", errorCode: `HTTP_${response.status}` };
+  }
+  if (!response.ok) {
+    const parsedError = ingestErrorSchema.safeParse(payload);
+    return { status: "failed", errorCode: parsedError.success ? parsedError.data.errorCode : `HTTP_${response.status}` };
+  }
+  const parsedResponse = ingestResponseSchema.safeParse(payload);
+  if (!parsedResponse.success) {
+    return { status: "failed", errorCode: "INVALID_RESPONSE" };
+  }
+  return { status: "uploaded", response: parsedResponse.data };
+}
+var SKIP_REASON_TEXT = {
+  "no-token": "no `token` input - add `secrets.CRADESK_TOKEN` to upload this SBOM to your CRA Desk panel.",
+  "no-api-url": "no `api-url` input configured yet.",
+  "no-sbom": "no SBOM was read."
+};
+function renderUploadSection(result) {
+  const lines = ["## Upload", ""];
+  if (result.status === "skipped") {
+    lines.push(`Skipped: ${SKIP_REASON_TEXT[result.reason]}`);
+  } else if (result.status === "failed") {
+    lines.push(`Failed: \`${result.errorCode}\`. The report above is unaffected.`);
+  } else if (result.response.duplicate) {
+    lines.push(`Already ingested - this SBOM matches a previous upload (\`${result.response.sbomId}\`).`);
+  } else {
+    const { response } = result;
+    lines.push(
+      `Uploaded \`${response.sbomId}\`: ${response.componentCount} components (${response.withPurl} with a purl), ${response.newComponents} new, ${response.removedComponents} removed since the last version.`
+    );
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
 // src/run.ts
 var MISSING_SBOM_ERRORS = {
   "no-match": void 0,
@@ -12786,7 +12896,7 @@ async function run(env, now = () => /* @__PURE__ */ new Date()) {
     sbomError = MISSING_SBOM_ERRORS[source.reason];
   }
   const classification = config?.classification === void 0 ? void 0 : classify(config.classification, CURRENT_RULESET);
-  const markdown = renderMarkdownReport(
+  const report = renderMarkdownReport(
     composeReport({
       meta: {
         toolVersion: ACTION_VERSION,
@@ -12799,6 +12909,17 @@ async function run(env, now = () => /* @__PURE__ */ new Date()) {
       readiness: assessReadiness(CURRENT_CHECKLIST, inventory, answersOf(config))
     })
   );
+  const upload = source.found ? await uploadSbom(
+    {
+      apiUrl: inputs.apiUrl,
+      token: inputs.token,
+      productId: inputs.productId,
+      productVersion: inputs.productVersion
+    },
+    source.raw
+  ) : { status: "skipped", reason: "no-sbom" };
+  const markdown = `${report}
+${renderUploadSection(upload)}`;
   const wroteSummary = await appendStepSummary(markdown, env);
   let commented = false;
   if (inputs.comment && inputs.githubToken !== void 0) {
@@ -12807,7 +12928,7 @@ async function run(env, now = () => /* @__PURE__ */ new Date()) {
       commented = await postComment(buildCommentRequest(target, inputs.githubToken, markdown));
     }
   }
-  return { markdown, wroteSummary, commented };
+  return { markdown, wroteSummary, commented, upload };
 }
 
 // src/index.ts
