@@ -17,6 +17,11 @@ inputs:
 
     required: false
     default: 'cradesk.yml'
+  report-path:
+    description: >-
+      Also write the report to this file. GitHub Actions already gets a job summary; this is for a runner that has no equivalent surface.
+
+    required: false
   comment:
     description: 'Post the report as a pull-request comment when a token is available.'
     required: false
@@ -33,7 +38,7 @@ inputs:
     required: false
   api-url:
     description: >-
-      Base URL of your CRA Desk panel (e.g. https://cradesk.cloudsoft.com.pl). No default yet - without it, upload is skipped and the report says so.
+      Base URL of your CRA Desk panel (e.g. https://cradesk.eu). Deliberately has no default - without it, upload is skipped and the report says so.
 
     required: false
   product-id:

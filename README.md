@@ -7,6 +7,10 @@ and what the 11 September 2026 reporting obligation requires you to have in plac
 Free, no account required - the report is computed in the job and no data leaves the runner
 unless you opt into uploading to a CRA Desk panel (see below).
 
+On GitLab instead of GitHub? Same scan, same rules, same guarantees - see the
+[GitLab CI/CD component](gitlab/README.md), distributed as the `@cradesk/scan` npm package
+rather than a copy of this repository's bundle ([ADR-10](../cradesk-infra/doc/adr/adr-10-kanal-dystrybucji-skanera-ci.md)).
+
 ```yaml
 - uses: actions/checkout@v4
 
@@ -25,6 +29,7 @@ unless you opt into uploading to a CRA Desk panel (see below).
 |---|---|---|
 | `sbom-path` | - | CycloneDX or SPDX **JSON**. Comma-separated list allowed, and one `*` in the final segment (`build/*.cdx.json`). Omit it and the report explains how to generate one. |
 | `config-path` | `cradesk.yml` | Answers the classifier questions and the checklist items CI cannot know. |
+| `report-path` | - | Also write the report to this file. GitHub Actions already has a job summary; this exists for the GitLab component, which has no equivalent surface. |
 | `comment` | `true` | Post the report as a PR comment (needs `github-token` and `pull-requests: write`). |
 | `github-token` | - | Used only for the PR comment. Without it: job summary only. |
 | `token` | - | CRA Desk ingest token (panel's Tokens page). Presence of this input is what turns on upload. |
@@ -43,7 +48,7 @@ inventory is the panel's job, not this action's.
   with:
     sbom-path: sbom.json
     token: ${{ secrets.CRADESK_TOKEN }}
-    api-url: https://cradesk.cloudsoft.com.pl
+    api-url: https://cradesk.eu
     product-id: ${{ vars.CRADESK_PRODUCT_ID }}
     product-version: ${{ github.ref_name }}
 ```
@@ -128,5 +133,5 @@ report.
 
 ---
 
-Built by [CRA Desk](https://cradesk.dev.cloudsoft.com.pl). The classification rules live in the
+Built by [CRA Desk](https://cradesk.eu). The classification rules live in the
 CRA Desk monorepo and are versioned with citations; this repository is the packaged Action.
