@@ -4,7 +4,12 @@ Turns a CycloneDX or SPDX SBOM into a **Cyber Resilience Act readiness report** 
 summary: what your SBOM does and does not tell you, which CRA class your product falls into,
 and what the 11 September 2026 reporting obligation requires you to have in place.
 
-Free, no account, no data leaves the runner - the report is computed in the job.
+Free, no account required - the report is computed in the job and no data leaves the runner
+unless you opt into uploading to a CRA Desk panel (see below).
+
+On GitLab instead of GitHub? Same scan, same rules, same guarantees - see the
+[GitLab CI/CD component](gitlab/README.md), distributed as the `@cradesk/scan` npm package
+rather than a copy of this repository's bundle ([ADR-10](../cradesk-infra/doc/adr/adr-10-kanal-dystrybucji-skanera-ci.md)).
 
 ```yaml
 - uses: actions/checkout@v4
@@ -24,8 +29,34 @@ Free, no account, no data leaves the runner - the report is computed in the job.
 |---|---|---|
 | `sbom-path` | - | CycloneDX or SPDX **JSON**. Comma-separated list allowed, and one `*` in the final segment (`build/*.cdx.json`). Omit it and the report explains how to generate one. |
 | `config-path` | `cradesk.yml` | Answers the classifier questions and the checklist items CI cannot know. |
+| `report-path` | - | Also write the report to this file. GitHub Actions already has a job summary; this exists for the GitLab component, which has no equivalent surface. |
 | `comment` | `true` | Post the report as a PR comment (needs `github-token` and `pull-requests: write`). |
 | `github-token` | - | Used only for the PR comment. Without it: job summary only. |
+| `token` | - | CRA Desk ingest token (panel's Tokens page). Presence of this input is what turns on upload. |
+| `api-url` | - | Base URL of your CRA Desk panel. No default yet - without it, upload is skipped and the report says so. |
+| `product-id` | - | Product ID from the panel. Needed for upload to succeed once `token` is set. |
+| `product-version` | - | Label for this upload (e.g. a release tag), shown in the product's SBOM history. |
+
+## Uploading to a CRA Desk panel
+
+Optional, and off unless you set `token`. Uploads the same SBOM the report was built from,
+gzip-compressed, to your panel's ingest endpoint - continuous CVE/KEV watch over the stored
+inventory is the panel's job, not this action's.
+
+```yaml
+- uses: mmalinowski/cradesk-action@v0
+  with:
+    sbom-path: sbom.json
+    token: ${{ secrets.CRADESK_TOKEN }}
+    api-url: https://cradesk.eu
+    product-id: ${{ vars.CRADESK_PRODUCT_ID }}
+    product-version: ${{ github.ref_name }}
+```
+
+A missing `api-url`, a rejected token, or an unreachable panel never fails the build - the
+"Upload" section of the report says what happened instead. An SBOM matching a previous upload
+is reported as already ingested, not as an error - re-running the same build twice is a normal
+case, not a mistake.
 
 The action never fails your build. A missing SBOM, an unreadable file or a refused comment are
 reported, not thrown.
@@ -102,5 +133,5 @@ report.
 
 ---
 
-Built by [CRA Desk](https://cradesk.dev.cloudsoft.com.pl). The classification rules live in the
+Built by [CRA Desk](https://cradesk.eu). The classification rules live in the
 CRA Desk monorepo and are versioned with citations; this repository is the packaged Action.

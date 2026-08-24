@@ -17,6 +17,11 @@ inputs:
 
     required: false
     default: 'cradesk.yml'
+  report-path:
+    description: >-
+      Also write the report to this file. GitHub Actions already gets a job summary; this is for a runner that has no equivalent surface.
+
+    required: false
   comment:
     description: 'Post the report as a pull-request comment when a token is available.'
     required: false
@@ -25,6 +30,22 @@ inputs:
     description: >-
       Token used only to post the pull-request comment. Needs `pull-requests: write`. Omit it and the report goes to the job summary only.
 
+    required: false
+  token:
+    description: >-
+      CRA Desk ingest token from your panel's Tokens page. Presence of this input is what turns on the upload step; omit it and the action only ever produces a report.
+
+    required: false
+  api-url:
+    description: >-
+      Base URL of your CRA Desk panel (e.g. https://cradesk.eu). Deliberately has no default - without it, upload is skipped and the report says so.
+
+    required: false
+  product-id:
+    description: 'Product ID from the panel. Required for upload to succeed once a token is set.'
+    required: false
+  product-version:
+    description: 'Label for this upload (e.g. a release tag). Optional - shown in the product''s SBOM history.'
     required: false
 
 runs:
