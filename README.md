@@ -7,17 +7,13 @@ and what the 11 September 2026 reporting obligation requires you to have in plac
 Free, no account required - the report is computed in the job and no data leaves the runner
 unless you opt into uploading to a CRA Desk panel (see below).
 
-On GitLab instead of GitHub? Same scan, same rules, same guarantees - see the
-[GitLab CI/CD component](gitlab/README.md), distributed as the `@cradesk/scan` npm package
-rather than a copy of this repository's bundle ([ADR-10](../cradesk-infra/doc/adr/adr-10-kanal-dystrybucji-skanera-ci.md)).
-
 ```yaml
 - uses: actions/checkout@v4
 
 # Any SBOM generator works; the action does not generate one.
 - run: npx @cyclonedx/cdxgen -o sbom.json .
 
-- uses: mmalinowski/cradesk-action@v0
+- uses: mmalinowski/cradesk-action@v1
   with:
     sbom-path: sbom.json
     github-token: ${{ secrets.GITHUB_TOKEN }} # optional: also comment on the PR
@@ -44,7 +40,7 @@ gzip-compressed, to your panel's ingest endpoint - continuous CVE/KEV watch over
 inventory is the panel's job, not this action's.
 
 ```yaml
-- uses: mmalinowski/cradesk-action@v0
+- uses: mmalinowski/cradesk-action@v1
   with:
     sbom-path: sbom.json
     token: ${{ secrets.CRADESK_TOKEN }}
