@@ -11425,12 +11425,14 @@ var contentStatusSchema = external_exports.enum(["verified", "gap-to-verify"]);
 var CRA_ELI_URL = "https://eur-lex.europa.eu/eli/reg/2024/2847/oj/eng";
 var CRA_IR_ELI_URL = "https://eur-lex.europa.eu/eli/reg_impl/2025/2392/oj/eng";
 var ENISA_SRP_URL = "https://www.enisa.europa.eu/topics/product-security-and-certification/single-reporting-platform-srp";
+var ENISA_SRP_TOPICS_URL = "https://www.enisa.europa.eu/topics/product-security/single-reporting-platform-srp";
 var RFC_9116_URL = "https://www.rfc-editor.org/rfc/rfc9116";
 var CISA_VEX_JUSTIFICATIONS_URL = "https://www.cisa.gov/sites/default/files/publications/VEX_Status_Justification_Jun22.pdf";
 var OPENVEX_SPEC_URL = "https://github.com/openvex/spec/blob/main/OPENVEX-SPEC.md";
 var FAZA0_ACCESSED_AT = "2026-08-08";
 var FAZA0_E6_ACCESSED_AT = "2026-08-14";
 var FAZA0_VEX_ACCESSED_AT = "2026-08-18";
+var KB_2026_08_26_ACCESSED_AT = "2026-08-26";
 function craCitation(unit) {
   return { act: "cra", unit, url: CRA_ELI_URL, accessedAt: FAZA0_ACCESSED_AT };
 }
@@ -12020,7 +12022,142 @@ var READINESS_CHECKLIST_2026_08_08 = checklistSchema.parse({
     }
   ]
 });
-var CURRENT_CHECKLIST = READINESS_CHECKLIST_2026_08_08;
+
+// ../../shared/cradesk-core/src/content/readiness/2026-08-26/index.ts
+var READINESS_CHECKLIST_2026_08_26 = checklistSchema.parse({
+  regVer: "2026-08-26",
+  items: [
+    {
+      slug: "sbom-machine-readable",
+      title: "A machine-readable SBOM exists for the product",
+      why: 'Annex I Part II(1) requires identifying and documenting components, including by drawing up an SBOM in a commonly used, machine-readable format. Without one, "which of our components is affected" has no answer inside 24 hours.',
+      evidence: "A CycloneDX or SPDX JSON document produced by the build, stored per product version.",
+      check: "auto",
+      autoCheck: "sbom-parsed",
+      citation: craCitation("Annex I, Part II, point 1"),
+      status: "verified"
+    },
+    {
+      slug: "component-identifiers",
+      title: "Components carry package identifiers (purl)",
+      why: "Matching a CVE to a component is only reliable against a package URL. Components identified by name alone are matched by heuristics, which produces both misses and false alarms.",
+      evidence: "Every component in the SBOM has a purl.",
+      check: "auto",
+      autoCheck: "purl-coverage",
+      // The act asks for a machine-readable SBOM; purl is only the practice that makes it
+      // usable, which is why this is a gap and not a duty.
+      citation: craCitation("Annex I, Part II, point 1"),
+      status: "gap-to-verify"
+    },
+    {
+      slug: "component-versions",
+      title: "Component versions are pinned in the SBOM",
+      why: "A vulnerability applies to a version range. A component without a version cannot be judged affected or not, so it will be triaged by hand on the day it matters.",
+      evidence: "Every component in the SBOM has a version.",
+      check: "auto",
+      autoCheck: "versions-known",
+      citation: craCitation("Annex I, Part II, point 1"),
+      status: "verified"
+    },
+    {
+      slug: "dependency-graph",
+      title: "The SBOM records dependency relationships",
+      why: "Annex I Part II(1) is read as covering at least top-level dependencies; a flat list cannot show whether a vulnerable package is one you ship directly or one pulled in transitively - which changes who has to fix it.",
+      evidence: "CycloneDX `dependencies` or SPDX `relationships` are present.",
+      check: "auto",
+      autoCheck: "dependency-graph",
+      citation: craCitation("Annex I, Part II, point 1"),
+      status: "gap-to-verify"
+    },
+    {
+      slug: "product-scope-known",
+      title: "The product\u2019s CRA scope and class are established",
+      why: "The reporting obligation applies to every product with digital elements in scope, whatever its class. The class decides the 2027 conformity route, not whether Article 14 applies today.",
+      evidence: "A recorded classification verdict per product, with the rules version it was issued under.",
+      check: "answer",
+      citation: craCitation("Article 7(1)"),
+      status: "verified"
+    },
+    {
+      slug: "vulnerability-monitoring",
+      title: "Components are monitored against vulnerability sources",
+      why: "The 24-hour clock starts when the manufacturer becomes aware of an actively exploited vulnerability. Without monitoring, awareness arrives from a customer or an attacker.",
+      evidence: "A recurring check of the component inventory against NVD/OSV and CISA KEV, with an owner.",
+      check: "answer",
+      citation: craCitation("Article 14(1) and Article 3(42)"),
+      status: "verified"
+    },
+    {
+      slug: "incident-owner",
+      title: "A named person owns the 24-hour early warning",
+      why: "The first deadline is 24 hours from awareness, including weekends. An unassigned duty is missed by default.",
+      evidence: "A named owner and deputy, with the escalation path written down.",
+      check: "answer",
+      citation: craCitation("Article 14(2)(a)"),
+      status: "verified"
+    },
+    {
+      slug: "csirt-coordinator-known",
+      title: "The CSIRT designated as coordinator is identified",
+      why: "Reports go to the CSIRT of the Member State of your main establishment, and to ENISA, simultaneously. Which CSIRT that is should not be researched during the first hour of an incident.",
+      evidence: "The CSIRT for your main establishment recorded, with its contact route.",
+      check: "answer",
+      citation: craCitation("Article 14(7)"),
+      status: "verified"
+    },
+    {
+      slug: "srp-account",
+      title: "The route into the ENISA Single Reporting Platform is arranged",
+      why: "Reporting runs through the SRP, which opens on 11 September 2026. ENISA asks manufacturers to register in the platform when filing a specific notification rather than in advance, and validation by the coordinating CSIRT happens after first access - it is not a precondition for meeting the 24-hour deadline. The part that can be done in advance is an EU Login account for the people who would file.",
+      evidence: "An EU Login account for the primary and the backup reporter, plus the registration route read once against ENISA\u2019s current guidance.",
+      check: "answer",
+      citation: {
+        act: "enisa-srp",
+        unit: "Assigned Representative registration and notification guidance (updated 2026-08-03; interface functions 2026-08-14)",
+        url: ENISA_SRP_TOPICS_URL,
+        accessedAt: KB_2026_08_26_ACCESSED_AT
+      },
+      status: "verified"
+    },
+    {
+      slug: "cvd-policy",
+      title: "A coordinated vulnerability disclosure policy is published",
+      why: "Annex I Part II(5) requires a CVD policy. It is also how a reporter reaches you before an exploit does.",
+      evidence: "A published policy stating where to report, what to expect and in what timeframe.",
+      check: "answer",
+      citation: craCitation("Annex I, Part II, point 5"),
+      status: "verified"
+    },
+    {
+      slug: "vulnerability-contact",
+      title: "A contact address for vulnerability reports is discoverable",
+      why: "Annex I Part II(6) requires a contact address for reporting vulnerabilities; a security.txt file is the convention that makes it findable without a support ticket.",
+      evidence: "A security.txt served over HTTPS, or an equivalent documented address.",
+      check: "answer",
+      citation: craCitation("Annex I, Part II, point 6"),
+      status: "verified"
+    },
+    {
+      slug: "user-notification-path",
+      title: "There is a way to notify affected users",
+      why: "Article 14(8) requires informing affected users about the vulnerability or incident and any corrective measures - where necessary in a structured, machine-readable format. This obligation cannot be discharged by any tool.",
+      evidence: "A user-notification channel and a template, plus a machine-readable advisory format where applicable.",
+      check: "answer",
+      citation: craCitation("Article 14(8)"),
+      status: "verified"
+    },
+    {
+      slug: "conformity-route-known",
+      title: "The 2027 conformity route is known",
+      why: "The class decides whether self-assessment is available or a notified body is required from 11 December 2027. Booking a notified body is not a same-quarter activity.",
+      evidence: "The applicable Article 32 route recorded per product.",
+      check: "answer",
+      citation: craCitation("Article 32"),
+      status: "verified"
+    }
+  ]
+});
+var CURRENT_CHECKLIST = READINESS_CHECKLIST_2026_08_26;
 
 // ../../shared/cradesk-core/src/content/rulesets/2026-08-08/categories.ts
 function classOne(point, slug, en, pl, technicalDescriptionSummary) {
@@ -13238,7 +13375,7 @@ var osvParseErrorCodeSchema = external_exports.enum(["not-json", "invalid-struct
 var import_promises = require("node:fs/promises");
 
 // src/version.ts
-var ACTION_VERSION = "1.0.1";
+var ACTION_VERSION = "1.1.0";
 
 // src/pr-comment.ts
 var MARKER = "<!-- cradesk-action -->";
