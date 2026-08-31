@@ -13386,7 +13386,7 @@ var osvParseErrorCodeSchema = external_exports.enum(["not-json", "invalid-struct
 var import_promises = require("node:fs/promises");
 
 // src/version.ts
-var ACTION_VERSION = "1.1.0";
+var ACTION_VERSION = "1.3.0";
 
 // src/pr-comment.ts
 var MARKER = "<!-- cradesk-action -->";
