@@ -12903,6 +12903,7 @@ function assessReadiness(checklist, inventory, answers = {}) {
 
 // ../../shared/cradesk-core/src/report/compose-report.ts
 var CLASSIFIER_URL = "https://cradesk.eu/classifier";
+var SBOM_GUIDE_URL = "https://cradesk.eu/sbom";
 var DISCLAIMER_EN = "This report is a compliance aid, not legal advice. Article 14 obligations rest with the manufacturer; source coverage is declared, never complete.";
 function composeReport(input) {
   return {
@@ -12916,7 +12917,8 @@ function composeReport(input) {
     classification: input.classification,
     readiness: input.readiness,
     disclaimer: DISCLAIMER_EN,
-    classifierUrl: CLASSIFIER_URL
+    classifierUrl: CLASSIFIER_URL,
+    sbomGuideUrl: SBOM_GUIDE_URL
   };
 }
 
@@ -13112,7 +13114,7 @@ function sbomSection(document) {
     return [
       "## SBOM",
       "",
-      "No SBOM was supplied. Generate one with syft or cdxgen and pass it as `sbom-path`; every item below that depends on the inventory stays unanswered.",
+      `No SBOM was supplied. The generate step differs per ecosystem - Maven and Gradle need a plugin in the build file, npm and pip do not: ${document.sbomGuideUrl}. Pass the file it produces as \`sbom-path\`; every item below that depends on the inventory stays unanswered.`,
       ""
     ];
   }
@@ -13319,6 +13321,15 @@ function firstIssuePath(error) {
   const issue = error.issues[0];
   return issue === void 0 ? "unknown" : issue.path.join(".") || "document";
 }
+
+// ../../shared/cradesk-core/src/watch/evaluate.ts
+var needsReviewReasonSchema = external_exports.enum([
+  "component-version-missing",
+  "component-version-unparseable",
+  "advisory-range-unparseable",
+  "advisory-range-not-comparable",
+  "advisory-versions-unspecified"
+]);
 
 // ../../shared/cradesk-core/src/watch/kev.ts
 var kevEntrySchema = external_exports.object({
