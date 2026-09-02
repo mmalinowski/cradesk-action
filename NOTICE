@@ -1,4 +1,4 @@
-CRA Desk - CRA readiness report (GitHub Action)
+CRA Desk - CRA readiness report (GitHub Action, GitLab CI/CD component, @cradesk/scan)
 Copyright 2026 CloudSoft Marcin Malinowski
 
 Licensed under the Apache License, Version 2.0. See the LICENSE file.
