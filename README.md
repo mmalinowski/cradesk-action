@@ -57,31 +57,120 @@ case, not a mistake.
 The action never fails your build. A missing SBOM, an unreadable file or a refused comment are
 reported, not thrown.
 
+<!-- cradesk-config:start -->
 ## `cradesk.yml`
 
-Everything is optional. Without a `classification` block the report says the class is
-undetermined and links the browser classifier.
+Answers what a scan cannot derive from an SBOM: what the product *is*, and which organisational
+duties you already have in place. The file is optional and every part of it is optional - without
+one, the report still scores the four SBOM checks, reports the CRA class as undetermined, and
+links the browser classifier.
+
+Put it in the repository root, or point the config-path input (see Inputs above) somewhere else.
+The default is `cradesk.yml`.
+
+Two things to know before writing one:
+
+- **A file that fails to parse is ignored, exactly as if it were absent.** A typo in an enum
+  value, a wrong indent, an unknown field - the whole file is discarded and the report reads as
+  though you never wrote it. After adding or editing one, check that the report's Classification
+  section actually names your class.
+- **Nothing is ever assumed answered.** An omitted checklist key is reported as unanswered, never
+  as met. Omit a key rather than guessing at it - an unanswered duty is what the report exists to
+  surface.
+
+### Full example
 
 ```yaml
+# Free text. Names the product in the report header. Optional.
 product: Acme Firewall
 
+# All four fields are required if this block is present. Omit the whole block and the report
+# says the class is undetermined instead.
 classification:
-  # A category from Annex III / Annex IV, or `none` (not listed) or `unknown`.
   categorySlug: firewalls-ids-ips
-  # commercial | commercial-foss | non-commercial-foss | steward
   distribution: commercial
-  # user-device | browser-only-service | remote-part-required-for-function
   execution: user-device
-  # none | medical-device | motor-vehicle | civil-aviation | marine-equipment | national-security
   otherUnionLaw: none
 
-# Checklist items only you can answer.
+# Checklist items only you can answer. Booleans; omit what you do not know.
 answers:
-  srp-account: true
+  product-scope-known: true
+  vulnerability-monitoring: true
+  incident-owner: true
+  csirt-coordinator-known: false
+  srp-account: false
   cvd-policy: true
   vulnerability-contact: true
-  incident-owner: false
+  user-notification-path: true
+  conformity-route-known: true
 ```
+
+### `classification.categorySlug`
+
+Where the product sits in the CRA's own annexes. Use `none` if no category fits - absence from
+the annexes is itself a verdict (default class, self-assessment), not a gap. Use `unknown` if you
+have not decided yet; the report then says so rather than picking for you.
+
+Important, class I (Annex III):
+`identity-and-privileged-access-management`, `browsers`, `password-managers`, `malware-detection`,
+`vpn`, `network-management-systems`, `siem`, `boot-managers`, `pki-and-certificate-issuance`,
+`network-interfaces`, `operating-systems`, `routers-modems-switches`,
+`microprocessors-with-security-functions`, `microcontrollers-with-security-functions`,
+`asic-fpga-with-security-functions`, `smart-home-virtual-assistants`,
+`smart-home-security-products`, `internet-connected-toys`, `personal-wearables`
+
+Important, class II (Annex III):
+`hypervisors-and-container-runtimes`, `firewalls-ids-ips`, `tamper-resistant-microprocessors`,
+`tamper-resistant-microcontrollers`
+
+Critical (Annex IV):
+`hardware-devices-with-security-boxes`, `smart-meter-gateways`, `smartcards-and-secure-elements`
+
+### `classification.distribution`
+
+| Value | Meaning |
+|---|---|
+| `commercial` | Sold, licensed, or otherwise supplied in the course of a commercial activity. |
+| `commercial-foss` | Open source, but monetised - a paid product, support, or a hosted service around it. In scope, with a lighter conformity route available. |
+| `non-commercial-foss` | Open source developed outside any commercial activity. |
+| `steward` | An open-source software steward under the CRA's own definition, not a manufacturer. |
+
+Free and open source does not by itself put a product outside the CRA. What matters is whether it
+is supplied in the course of a commercial activity - a free tool distributed to sell something
+else is `commercial-foss`.
+
+### `classification.execution`
+
+| Value | Meaning |
+|---|---|
+| `user-device` | Runs on the user's own machine or hardware. |
+| `browser-only-service` | Reached only through a browser, with no component the user installs. |
+| `remote-part-required-for-function` | Installed software whose function depends on a remote part you operate. |
+
+### `classification.otherUnionLaw`
+
+Sector legislation that displaces or overlays the CRA for this product. One of `none`,
+`medical-device`, `motor-vehicle`, `civil-aviation`, `marine-equipment`, `national-security`.
+
+### `answers`
+
+A map of checklist slug to `true` or `false`. Nine items can be answered here:
+
+| Slug | Question it answers |
+|---|---|
+| `product-scope-known` | The product's CRA scope and class are established. |
+| `vulnerability-monitoring` | Components are monitored against vulnerability sources. |
+| `incident-owner` | A named person owns the 24-hour early warning. |
+| `csirt-coordinator-known` | The CSIRT designated as coordinator is identified. |
+| `srp-account` | The route into the ENISA Single Reporting Platform is arranged. |
+| `cvd-policy` | A coordinated vulnerability disclosure policy is published. |
+| `vulnerability-contact` | A contact address for vulnerability reports is discoverable. |
+| `user-notification-path` | There is a way to notify affected users. |
+| `conformity-route-known` | The 2027 conformity route is known. |
+
+Four further checks are read from the SBOM itself and ignore anything you put here:
+`sbom-machine-readable`, `component-identifiers`, `component-versions`, `dependency-graph`.
+<!-- cradesk-config:end -->
 
 ## What it checks
 

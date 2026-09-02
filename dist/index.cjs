@@ -11408,10 +11408,10 @@ var citedActSchema = external_exports.enum([
   "cra-guidance-c-2026-5252",
   "enisa-srp",
   // RFC 9116: security.txt is a convention that makes Annex I Part II(6)'s contact
-  // address discoverable, not itself a CRA requirement - E6/D182 keeps the two cited
+  // address discoverable, not itself a CRA requirement - the two are kept cited
   // separately so the generated file never implies the format itself is mandated.
   "rfc-9116",
-  // Neither is EU law, so entries citing them carry 'gap-to-verify' (ADR-11).
+  // Neither is EU law, so entries citing them carry 'gap-to-verify'.
   "cisa-vex-justifications",
   "openvex-spec"
 ]);
@@ -11547,7 +11547,7 @@ var productCategorySchema = external_exports.object({
   productClass: listedProductClassSchema,
   // A summary of the category's technical description in Implementing Regulation (EU)
   // 2025/2392 - deliberately not named "description": it is not a verbatim quote, and
-  // verbatim wording is still an open verification item (v0-faza0-wyniki.md Q1/Q8).
+  // verbatim wording is still an open verification item.
   technicalDescriptionSummary: external_exports.string().min(1),
   // Two citations per category, because two acts are doing the work: the CRA annex point
   // assigns the class, the Implementing Regulation describes what falls in it.
@@ -11821,7 +11821,7 @@ function classify(input, ruleset) {
 // ../../shared/cradesk-core/src/content/feeds/2026-08-11/ecosystems.ts
 var ecosystemMappingSchema = external_exports.object({
   // The purl `type` component (package-url spec), as it appears in `pkgKey`
-  // (`pkg:<type>/...`, toPackageKey - E1/D76).
+  // (`pkg:<type>/...`, toPackageKey).
   purlType: external_exports.string().min(1),
   // OSV's own ecosystem name, exactly as it names a top-level directory in the GCS
   // bucket (`<ecosystem>/<id>.json`, `<ecosystem>/all.zip`) - case-sensitive.
@@ -11856,7 +11856,7 @@ var checkKindSchema = external_exports.enum(["auto", "answer"]);
 var autoCheckSchema = external_exports.enum(["sbom-parsed", "purl-coverage", "versions-known", "dependency-graph"]);
 var checklistItemSchema = external_exports.object({
   slug: external_exports.string().min(1),
-  // English prose: the readiness report is a content artifact, not a verdict (D18).
+  // English prose: the readiness report is a content artifact, not a verdict.
   title: external_exports.string().min(1),
   why: external_exports.string().min(1),
   evidence: external_exports.string().min(1),
@@ -11884,7 +11884,7 @@ var readinessReportSchema = external_exports.object({
   met: external_exports.number().int().nonnegative(),
   notMet: external_exports.number().int().nonnegative(),
   unknown: external_exports.number().int().nonnegative(),
-  /** Checklist entries whose wording is not yet confirmed in a primary source (D12). */
+  /** Checklist entries whose wording is not yet confirmed in a primary source. */
   contentGaps: external_exports.number().int().nonnegative()
 });
 
@@ -12530,10 +12530,10 @@ var SECURITY_TXT_TEMPLATE_2026_08_14 = {
 var contentKindSchema = external_exports.enum(["ruleset", "template"]);
 var CONTENT_VERSION_ENVELOPE_BASE = {
   slug: external_exports.string().min(1),
-  // Sequence number the repository assigns on publish (D262) - SK is `V#<version>`.
+  // Sequence number the repository assigns on publish - SK is `V#<version>`.
   version: external_exports.number().int().positive(),
   // Ruleset.regVer / DocumentTemplate.templateVer, lifted out of the payload so a lookup
-  // by content identity doesn't have to parse it (D257/D260).
+  // by content identity doesn't have to parse it.
   contentVer: external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   changelog: external_exports.string().min(1),
   publishedAt: external_exports.string().datetime(),
@@ -12703,7 +12703,7 @@ var ecosystemCoverageSchema = external_exports.object({
   unsupportedEcosystem: external_exports.number().int().nonnegative(),
   noPurl: external_exports.number().int().nonnegative(),
   // A watched component with no version can only ever be evaluated as needs-review
-  // (E4/D122) - counted separately so "watched: N" never promises a verdict.
+  // - counted separately so "watched: N" never promises a verdict.
   watchedWithoutVersion: external_exports.number().int().nonnegative(),
   byEcosystem: external_exports.array(ecosystemCountSchema),
   unsupportedTypes: external_exports.array(purlTypeCountSchema)
@@ -12784,19 +12784,19 @@ var ingestRequestSchema = external_exports.object({
   productId: external_exports.string().uuid(),
   productVersion: external_exports.string().min(1).optional(),
   // The SBOM document itself, as sent by the caller - not yet parsed. Ingest parses it
-  // server-side (hostile input, hard rule 3); the Action never parses on the wire.
+  // server-side, since it is hostile input; the Action never parses on the wire.
   sbom: external_exports.string().min(1)
 });
 var ingestResponseSchema = external_exports.object({
   sbomId: external_exports.string().uuid(),
-  // Same content hash seen before (ADR-2 D68) - the caller gets counts from the
+  // Same content hash seen before - the caller gets counts from the
   // existing ingest, not a re-parse.
   duplicate: external_exports.boolean(),
   componentCount: external_exports.number().int().nonnegative(),
   withPurl: external_exports.number().int().nonnegative(),
   newComponents: external_exports.number().int().nonnegative(),
   removedComponents: external_exports.number().int().nonnegative(),
-  // Optional in both directions (D304): the Action is published by hand (P3/P66), so a
+  // Optional in both directions: the Action is published by hand, so a
   // bundle older than the endpoint and an endpoint older than the bundle both exist.
   coverage: ecosystemCoverageSchema.optional()
 });
@@ -12811,7 +12811,7 @@ var componentSchema = external_exports.object({
   name: external_exports.string().min(1),
   version: external_exports.string().min(1).optional(),
   // Package URL (purl). Vulnerability matching in E4 keys on this - a component without one
-  // can only be matched by name heuristics, which is why coverage is measured (D17).
+  // can only be matched by name heuristics, which is why coverage is measured.
   purl: external_exports.string().min(1).optional(),
   licenses: external_exports.array(external_exports.string().min(1))
 });
@@ -12823,8 +12823,8 @@ var sbomQualitySchema = external_exports.object({
   // CycloneDX `dependencies` / SPDX `relationships`: without it the SBOM is a flat list and
   // "top-level dependencies only" (Annex I Part II(1)) cannot be told apart from a full tree.
   hasDependencyGraph: external_exports.boolean(),
-  // Optional because SBOM rows written before D300 have no measurement, and rendering a
-  // zero there would read as "nothing is watched" - the one direction hard rule 4 forbids.
+  // Optional because rows written before coverage was measured have none, and rendering a
+  // zero there would read as "nothing is watched", which is the one direction never allowed.
   ecosystems: ecosystemCoverageSchema.optional()
 });
 var sbomInventorySchema = external_exports.object({
@@ -12889,7 +12889,10 @@ function assessReadiness(checklist, inventory, answers = {}) {
       return { item, outcome, detail };
     }
     const answer = answers[item.slug];
-    return { item, outcome: answer === void 0 ? "unknown" : answer ? "met" : "not-met" };
+    if (answer === void 0) {
+      return { item, outcome: "unknown" };
+    }
+    return { item, outcome: answer ? "met" : "not-met", detail: answer ? "answered: yes" : "answered: no" };
   });
   return {
     regVer: checklist.regVer,
@@ -13373,7 +13376,7 @@ var osvRecordSchema = external_exports.object({
   modified: external_exports.string().min(1),
   aliases: external_exports.array(external_exports.string()).optional(),
   summary: external_exports.string().optional(),
-  // Present and non-empty means the record was retracted by its source (D129): existing
+  // Present and non-empty means the record was retracted by its source: existing
   // matches must be deleted, never left standing with a stale status.
   withdrawn: external_exports.string().optional(),
   severity: external_exports.array(osvSeveritySchema).optional(),
@@ -13386,7 +13389,7 @@ var osvParseErrorCodeSchema = external_exports.enum(["not-json", "invalid-struct
 var import_promises = require("node:fs/promises");
 
 // src/version.ts
-var ACTION_VERSION = "1.3.0";
+var ACTION_VERSION = "1.3.1";
 
 // src/pr-comment.ts
 var MARKER = "<!-- cradesk-action -->";
@@ -13502,8 +13505,8 @@ async function postNote(request, fetchImpl = fetch) {
 // src/ci/gitlab.ts
 var gitlabPlatform = {
   id: "gitlab",
-  // No summary-equivalent surface exists for GitLab (U29) - the persistent artifact is the
-  // provider-agnostic report-path file (D326), written by the CLI itself, not through here.
+  // No summary-equivalent surface exists for GitLab - the persistent artifact is the
+  // provider-agnostic report-path file, written by the CLI itself, not through here.
   writeReportSurface: () => Promise.resolve(false),
   async postReviewComment(markdown, inputs, env) {
     if (!inputs.comment || inputs.gitlabToken === void 0) {
@@ -13578,16 +13581,16 @@ function answersOf(config) {
 var actionInputsSchema = external_exports.object({
   sbomPath: external_exports.string().optional(),
   configPath: external_exports.string(),
-  // The artifact surface for a CI with no job-summary equivalent (D326) - provider-agnostic,
+  // The artifact surface for a CI with no job-summary equivalent - provider-agnostic,
   // so it works under GitHub too, though nothing there needs it.
   reportPath: external_exports.string().optional(),
   comment: external_exports.boolean(),
   githubToken: external_exports.string().optional(),
-  // Credential for GitLab's merge-request-notes API - separate from `token` (D328), which is
+  // Credential for GitLab's merge-request-notes API - separate from `token`, which is
   // the CRA Desk ingest secret, not a poster's own CI credential.
   gitlabToken: external_exports.string().optional(),
-  // Upload to the CRA Desk panel (F3.3): token presence is what turns it on (D115) -
-  // apiUrl gets no default until the brand/domain decision (P13/P26) lands.
+  // Upload to the CRA Desk panel: token presence is what turns it on -
+  // apiUrl gets no default until the brand/domain decision lands.
   token: external_exports.string().optional(),
   apiUrl: external_exports.string().optional(),
   productId: external_exports.string().optional(),
@@ -13605,7 +13608,7 @@ function readInputs(env) {
     sbomPath: readEnvInput(env, "sbom-path"),
     configPath: readEnvInput(env, "config-path") ?? "cradesk.yml",
     reportPath: readEnvInput(env, "report-path"),
-    // Commenting is opt-out, but it silently does nothing without a token (D22).
+    // Commenting is opt-out, but it silently does nothing without a token.
     comment: readEnvInput(env, "comment") !== "false",
     githubToken: readEnvInput(env, "github-token"),
     gitlabToken: readEnvInput(env, "gitlab-token"),
@@ -13699,7 +13702,7 @@ async function uploadSbom(inputs, sbom, fetchImpl = fetch) {
         "content-encoding": "gzip",
         "user-agent": `cradesk-action/${ACTION_VERSION}`
       },
-      // Gzip is required by arithmetic, not convenience (D112): the Function URL's 6 MB
+      // Gzip is required by arithmetic, not convenience: the Function URL's 6 MB
       // payload limit leaves ~4.5 MB once base64-encoded, below the parser's own 16 MB cap.
       body: (0, import_node_zlib.gzipSync)(Buffer.from(JSON.stringify(parsedRequest.data), "utf-8"))
     });
