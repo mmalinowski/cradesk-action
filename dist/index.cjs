@@ -7358,6 +7358,30 @@ var require_dist = __commonJS({
   }
 });
 
+// ../../shared/cradesk-core/src/sbom/package-key.ts
+var PYPI_PREFIX = "pkg:pypi/";
+function findVersionSeparatorIndex(purl) {
+  for (let i = purl.length - 1; i >= 0; i--) {
+    if (purl[i] === "@" && purl[i - 1] !== "/") {
+      return i;
+    }
+  }
+  return -1;
+}
+function normalizePypiName(pkgKey) {
+  if (!pkgKey.startsWith(PYPI_PREFIX)) {
+    return pkgKey;
+  }
+  return PYPI_PREFIX + pkgKey.slice(PYPI_PREFIX.length).replace(/[-_.]+/g, "-");
+}
+function toPackageKey(purl) {
+  const withoutSubpath = purl.split("#")[0];
+  const withoutQualifiers = withoutSubpath.split("?")[0];
+  const versionSeparatorIndex = findVersionSeparatorIndex(withoutQualifiers);
+  const withoutVersion = versionSeparatorIndex === -1 ? withoutQualifiers : withoutQualifiers.slice(0, versionSeparatorIndex);
+  return normalizePypiName(withoutVersion.toLowerCase());
+}
+
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
 var external_exports = {};
 __export(external_exports, {
@@ -11424,14 +11448,8 @@ var citationSchema = external_exports.object({
 var contentStatusSchema = external_exports.enum(["verified", "gap-to-verify"]);
 var CRA_ELI_URL = "https://eur-lex.europa.eu/eli/reg/2024/2847/oj/eng";
 var CRA_IR_ELI_URL = "https://eur-lex.europa.eu/eli/reg_impl/2025/2392/oj/eng";
-var ENISA_SRP_URL = "https://www.enisa.europa.eu/topics/product-security-and-certification/single-reporting-platform-srp";
 var ENISA_SRP_TOPICS_URL = "https://www.enisa.europa.eu/topics/product-security/single-reporting-platform-srp";
-var RFC_9116_URL = "https://www.rfc-editor.org/rfc/rfc9116";
-var CISA_VEX_JUSTIFICATIONS_URL = "https://www.cisa.gov/sites/default/files/publications/VEX_Status_Justification_Jun22.pdf";
-var OPENVEX_SPEC_URL = "https://github.com/openvex/spec/blob/main/OPENVEX-SPEC.md";
 var FAZA0_ACCESSED_AT = "2026-08-08";
-var FAZA0_E6_ACCESSED_AT = "2026-08-14";
-var FAZA0_VEX_ACCESSED_AT = "2026-08-18";
 var KB_2026_08_26_ACCESSED_AT = "2026-08-26";
 function craCitation(unit) {
   return { act: "cra", unit, url: CRA_ELI_URL, accessedAt: FAZA0_ACCESSED_AT };
@@ -11439,100 +11457,6 @@ function craCitation(unit) {
 function irCitation(unit) {
   return { act: "cra-ir-2025-2392", unit, url: CRA_IR_ELI_URL, accessedAt: FAZA0_ACCESSED_AT };
 }
-function securityTxtCitation(unit) {
-  return { act: "rfc-9116", unit, url: RFC_9116_URL, accessedAt: FAZA0_E6_ACCESSED_AT };
-}
-function cisaVexCitation(unit) {
-  return { act: "cisa-vex-justifications", unit, url: CISA_VEX_JUSTIFICATIONS_URL, accessedAt: FAZA0_VEX_ACCESSED_AT };
-}
-function openVexCitation(unit) {
-  return { act: "openvex-spec", unit, url: OPENVEX_SPEC_URL, accessedAt: FAZA0_VEX_ACCESSED_AT };
-}
-
-// ../../shared/cradesk-core/src/content/deadlines/2026-08-13/article-14.ts
-var caseTrackSchema = external_exports.enum(["vulnerability", "incident"]);
-var caseDeadlineStageSchema = external_exports.enum(["early-warning", "notification", "final-report"]);
-var deadlineAnchorSchema = external_exports.enum(["aware-at", "remediation-available-at", "notification-submitted-at"]);
-var deadlineUnitSchema = external_exports.enum(["hours", "days", "calendar-months"]);
-var deadlineRuleSchema = external_exports.object({
-  track: caseTrackSchema,
-  stage: caseDeadlineStageSchema,
-  anchor: deadlineAnchorSchema,
-  offset: external_exports.number().int().positive(),
-  unit: deadlineUnitSchema,
-  citation: citationSchema,
-  status: contentStatusSchema
-});
-var deadlineScheduleSchema = external_exports.object({
-  regVer: external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  rules: external_exports.array(deadlineRuleSchema).min(1)
-});
-var DEADLINE_SCHEDULE_2026_08_13 = deadlineScheduleSchema.parse({
-  regVer: "2026-08-13",
-  rules: [
-    {
-      track: "vulnerability",
-      stage: "early-warning",
-      anchor: "aware-at",
-      offset: 24,
-      unit: "hours",
-      citation: craCitation("Article 14(2)(a)"),
-      status: "verified"
-    },
-    {
-      track: "vulnerability",
-      stage: "notification",
-      anchor: "aware-at",
-      offset: 72,
-      unit: "hours",
-      citation: craCitation("Article 14(2)(b)"),
-      status: "verified"
-    },
-    {
-      track: "vulnerability",
-      stage: "final-report",
-      anchor: "remediation-available-at",
-      offset: 14,
-      unit: "days",
-      citation: craCitation("Article 14(2)(c)"),
-      status: "verified"
-    },
-    {
-      track: "incident",
-      stage: "early-warning",
-      anchor: "aware-at",
-      offset: 24,
-      unit: "hours",
-      citation: craCitation("Article 14(4)(a)"),
-      status: "verified"
-    },
-    {
-      track: "incident",
-      stage: "notification",
-      anchor: "aware-at",
-      offset: 72,
-      unit: "hours",
-      citation: craCitation("Article 14(4)(b)"),
-      status: "verified"
-    },
-    {
-      track: "incident",
-      stage: "final-report",
-      anchor: "notification-submitted-at",
-      offset: 1,
-      unit: "calendar-months",
-      citation: craCitation("Article 14(4)(c)"),
-      status: "verified"
-    }
-  ]
-});
-
-// ../../shared/cradesk-core/src/cases/state-machine.ts
-var caseStageSchema = external_exports.union([caseDeadlineStageSchema, external_exports.literal("closed")]);
-var caseCloseReasonSchema = external_exports.enum(["reported", "not-reportable", "duplicate"]);
-
-// ../../shared/cradesk-core/src/cases/urgency.ts
-var DUE_SOON_THRESHOLD_MS = 12 * 60 * 60 * 1e3;
 
 // ../../shared/cradesk-core/src/classification/ruleset.ts
 var localizedTextSchema = external_exports.object({
@@ -11838,7 +11762,21 @@ var ECOSYSTEM_MAP_2026_08_11 = external_exports.array(ecosystemMappingSchema).mi
   { purlType: "composer", osvEcosystem: "Packagist" },
   { purlType: "hex", osvEcosystem: "Hex" }
 ]);
-var CURRENT_ECOSYSTEM_MAP = ECOSYSTEM_MAP_2026_08_11;
+
+// ../../shared/cradesk-core/src/content/feeds/2026-09-21/ecosystems.ts
+var ECOSYSTEM_MAP_2026_09_21 = external_exports.array(ecosystemMappingSchema).min(1).parse([
+  { purlType: "npm", osvEcosystem: "npm" },
+  { purlType: "pypi", osvEcosystem: "PyPI" },
+  { purlType: "maven", osvEcosystem: "Maven" },
+  { purlType: "golang", osvEcosystem: "Go" },
+  { purlType: "cargo", osvEcosystem: "crates.io" },
+  { purlType: "nuget", osvEcosystem: "NuGet" },
+  { purlType: "gem", osvEcosystem: "RubyGems" },
+  { purlType: "composer", osvEcosystem: "Packagist" },
+  { purlType: "hex", osvEcosystem: "Hex" },
+  { purlType: "apk", osvEcosystem: "Alpine" }
+]);
+var CURRENT_ECOSYSTEM_MAP = ECOSYSTEM_MAP_2026_09_21;
 var SUPPORTED_OSV_ECOSYSTEMS = CURRENT_ECOSYSTEM_MAP.map((mapping) => mapping.osvEcosystem);
 function purlTypeFromPkgKey(pkgKey) {
   return /^pkg:([a-z.-]+)\//.exec(pkgKey)?.[1];
@@ -11888,144 +11826,9 @@ var readinessReportSchema = external_exports.object({
   contentGaps: external_exports.number().int().nonnegative()
 });
 
-// ../../shared/cradesk-core/src/content/readiness/2026-08-08/index.ts
-var READINESS_CHECKLIST_2026_08_08 = checklistSchema.parse({
-  regVer: "2026-08-08",
-  items: [
-    {
-      slug: "sbom-machine-readable",
-      title: "A machine-readable SBOM exists for the product",
-      why: 'Annex I Part II(1) requires identifying and documenting components, including by drawing up an SBOM in a commonly used, machine-readable format. Without one, "which of our components is affected" has no answer inside 24 hours.',
-      evidence: "A CycloneDX or SPDX JSON document produced by the build, stored per product version.",
-      check: "auto",
-      autoCheck: "sbom-parsed",
-      citation: craCitation("Annex I, Part II, point 1"),
-      status: "verified"
-    },
-    {
-      slug: "component-identifiers",
-      title: "Components carry package identifiers (purl)",
-      why: "Matching a CVE to a component is only reliable against a package URL. Components identified by name alone are matched by heuristics, which produces both misses and false alarms.",
-      evidence: "Every component in the SBOM has a purl.",
-      check: "auto",
-      autoCheck: "purl-coverage",
-      // The act asks for a machine-readable SBOM; purl is only the practice that makes it
-      // usable, which is why this is a gap and not a duty.
-      citation: craCitation("Annex I, Part II, point 1"),
-      status: "gap-to-verify"
-    },
-    {
-      slug: "component-versions",
-      title: "Component versions are pinned in the SBOM",
-      why: "A vulnerability applies to a version range. A component without a version cannot be judged affected or not, so it will be triaged by hand on the day it matters.",
-      evidence: "Every component in the SBOM has a version.",
-      check: "auto",
-      autoCheck: "versions-known",
-      citation: craCitation("Annex I, Part II, point 1"),
-      status: "verified"
-    },
-    {
-      slug: "dependency-graph",
-      title: "The SBOM records dependency relationships",
-      why: "Annex I Part II(1) is read as covering at least top-level dependencies; a flat list cannot show whether a vulnerable package is one you ship directly or one pulled in transitively - which changes who has to fix it.",
-      evidence: "CycloneDX `dependencies` or SPDX `relationships` are present.",
-      check: "auto",
-      autoCheck: "dependency-graph",
-      citation: craCitation("Annex I, Part II, point 1"),
-      status: "gap-to-verify"
-    },
-    {
-      slug: "product-scope-known",
-      title: "The product\u2019s CRA scope and class are established",
-      why: "The reporting obligation applies to every product with digital elements in scope, whatever its class. The class decides the 2027 conformity route, not whether Article 14 applies today.",
-      evidence: "A recorded classification verdict per product, with the rules version it was issued under.",
-      check: "answer",
-      citation: craCitation("Article 7(1)"),
-      status: "verified"
-    },
-    {
-      slug: "vulnerability-monitoring",
-      title: "Components are monitored against vulnerability sources",
-      why: "The 24-hour clock starts when the manufacturer becomes aware of an actively exploited vulnerability. Without monitoring, awareness arrives from a customer or an attacker.",
-      evidence: "A recurring check of the component inventory against NVD/OSV and CISA KEV, with an owner.",
-      check: "answer",
-      citation: craCitation("Article 14(1) and Article 3(42)"),
-      status: "verified"
-    },
-    {
-      slug: "incident-owner",
-      title: "A named person owns the 24-hour early warning",
-      why: "The first deadline is 24 hours from awareness, including weekends. An unassigned duty is missed by default.",
-      evidence: "A named owner and deputy, with the escalation path written down.",
-      check: "answer",
-      citation: craCitation("Article 14(2)(a)"),
-      status: "verified"
-    },
-    {
-      slug: "csirt-coordinator-known",
-      title: "The CSIRT designated as coordinator is identified",
-      why: "Reports go to the CSIRT of the Member State of your main establishment, and to ENISA, simultaneously. Which CSIRT that is should not be researched during the first hour of an incident.",
-      evidence: "The CSIRT for your main establishment recorded, with its contact route.",
-      check: "answer",
-      citation: craCitation("Article 14(7)"),
-      status: "verified"
-    },
-    {
-      slug: "srp-account",
-      title: "Access to the ENISA Single Reporting Platform is arranged",
-      why: "Reporting runs through the SRP. ENISA has published registration guidance for assigned representatives; the platform itself opens on 11 September 2026, so registration is the part you can do in advance.",
-      evidence: "An assigned representative registered, or the registration route confirmed against ENISA\u2019s guidance.",
-      check: "answer",
-      citation: {
-        act: "enisa-srp",
-        unit: "Assigned Representative registration guidance (updated 2026-07-31)",
-        url: ENISA_SRP_URL,
-        accessedAt: FAZA0_ACCESSED_AT
-      },
-      status: "verified"
-    },
-    {
-      slug: "cvd-policy",
-      title: "A coordinated vulnerability disclosure policy is published",
-      why: "Annex I Part II(5) requires a CVD policy. It is also how a reporter reaches you before an exploit does.",
-      evidence: "A published policy stating where to report, what to expect and in what timeframe.",
-      check: "answer",
-      citation: craCitation("Annex I, Part II, point 5"),
-      status: "verified"
-    },
-    {
-      slug: "vulnerability-contact",
-      title: "A contact address for vulnerability reports is discoverable",
-      why: "Annex I Part II(6) requires a contact address for reporting vulnerabilities; a security.txt file is the convention that makes it findable without a support ticket.",
-      evidence: "A security.txt served over HTTPS, or an equivalent documented address.",
-      check: "answer",
-      citation: craCitation("Annex I, Part II, point 6"),
-      status: "verified"
-    },
-    {
-      slug: "user-notification-path",
-      title: "There is a way to notify affected users",
-      why: "Article 14(8) requires informing affected users about the vulnerability or incident and any corrective measures - where necessary in a structured, machine-readable format. This obligation cannot be discharged by any tool.",
-      evidence: "A user-notification channel and a template, plus a machine-readable advisory format where applicable.",
-      check: "answer",
-      citation: craCitation("Article 14(8)"),
-      status: "verified"
-    },
-    {
-      slug: "conformity-route-known",
-      title: "The 2027 conformity route is known",
-      why: "The class decides whether self-assessment is available or a notified body is required from 11 December 2027. Booking a notified body is not a same-quarter activity.",
-      evidence: "The applicable Article 32 route recorded per product.",
-      check: "answer",
-      citation: craCitation("Article 32"),
-      status: "verified"
-    }
-  ]
-});
-
-// ../../shared/cradesk-core/src/content/readiness/2026-08-26/index.ts
-var READINESS_CHECKLIST_2026_08_26 = checklistSchema.parse({
-  regVer: "2026-08-26",
+// ../../shared/cradesk-core/src/content/readiness/2026-09-22/index.ts
+var READINESS_CHECKLIST_2026_09_22 = checklistSchema.parse({
+  regVer: "2026-09-22",
   items: [
     {
       slug: "sbom-machine-readable",
@@ -12141,7 +11944,7 @@ var READINESS_CHECKLIST_2026_08_26 = checklistSchema.parse({
       slug: "user-notification-path",
       title: "There is a way to notify affected users",
       why: "Article 14(8) requires informing affected users about the vulnerability or incident and any corrective measures - where necessary in a structured, machine-readable format. This obligation cannot be discharged by any tool.",
-      evidence: "A user-notification channel and a template, plus a machine-readable advisory format where applicable.",
+      evidence: "A CSAF 2.0 advisory and a readable version generated per case, plus a dispatch log recording channel, scope and date - the notification to users itself is still the vendor\u2019s own act.",
       check: "answer",
       citation: craCitation("Article 14(8)"),
       status: "verified"
@@ -12157,7 +11960,7 @@ var READINESS_CHECKLIST_2026_08_26 = checklistSchema.parse({
     }
   ]
 });
-var CURRENT_CHECKLIST = READINESS_CHECKLIST_2026_08_26;
+var CURRENT_CHECKLIST = READINESS_CHECKLIST_2026_09_22;
 
 // ../../shared/cradesk-core/src/content/rulesets/2026-08-08/categories.ts
 function classOne(point, slug, en, pl, technicalDescriptionSummary) {
@@ -12386,307 +12189,6 @@ var RULESET_2026_08_08 = rulesetSchema.parse({
   categories: ALL_CATEGORIES
 });
 var CURRENT_RULESET = RULESET_2026_08_08;
-
-// ../../shared/cradesk-core/src/content/templates/2026-08-14/document-template.ts
-var documentTypeSchema = external_exports.enum(["cvd-policy", "security-txt", "technical-documentation"]);
-var documentFormatSchema = external_exports.enum(["markdown", "docx", "text"]);
-var documentSectionSpecSchema = external_exports.object({
-  slug: external_exports.string().min(1),
-  heading: external_exports.string().min(1),
-  citation: citationSchema,
-  status: contentStatusSchema,
-  body: external_exports.string().min(1)
-});
-var documentTemplateSchema = external_exports.object({
-  type: documentTypeSchema,
-  templateVer: external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  title: external_exports.string().min(1),
-  allowedFormats: external_exports.array(documentFormatSchema).min(1),
-  sections: external_exports.array(documentSectionSpecSchema).min(1)
-});
-
-// ../../shared/cradesk-core/src/content/templates/2026-08-14/cvd-policy.ts
-var CVD_POLICY_TEMPLATE_2026_08_14 = documentTemplateSchema.parse({
-  type: "cvd-policy",
-  templateVer: "2026-08-14",
-  title: "Coordinated vulnerability disclosure policy",
-  allowedFormats: ["markdown", "docx"],
-  sections: [
-    {
-      slug: "purpose",
-      heading: "Purpose and scope",
-      citation: craCitation("Annex I, Part II, point 5"),
-      status: "verified",
-      body: "{{vendorName}} welcomes reports of security vulnerabilities in its products{{?productName}}, including {{productName}}{{/productName}}. This policy explains how to report a vulnerability, what to expect after reporting, and the timeline we follow for coordinated disclosure."
-    },
-    {
-      slug: "how-to-report",
-      heading: "How to report a vulnerability",
-      citation: craCitation("Annex I, Part II, point 6"),
-      status: "verified",
-      body: "Report a suspected vulnerability to {{!contactEmail|a contact address for vulnerability reports - generate a security.txt to publish one}}. Include a description of the issue, the affected product and version, and steps to reproduce it where known."
-    },
-    {
-      slug: "what-to-expect",
-      heading: "What to expect after reporting",
-      citation: craCitation("Annex I, Part II, point 5"),
-      status: "verified",
-      body: "We acknowledge reports within 5 business days, keep the reporter informed of remediation progress, and credit the reporter in our advisory unless anonymity is requested."
-    },
-    {
-      slug: "safe-harbor",
-      heading: "Safe harbor for good-faith research",
-      citation: craCitation("Annex I, Part II, point 5"),
-      status: "gap-to-verify",
-      body: "Good-faith security research conducted under this policy, without accessing or modifying data beyond what is necessary to demonstrate the vulnerability, will not be pursued as unauthorised access."
-    },
-    {
-      slug: "disclosure-timeline",
-      heading: "Coordinated disclosure timeline",
-      citation: craCitation("Annex I, Part II, point 5"),
-      status: "verified",
-      body: "We aim to remediate confirmed vulnerabilities and coordinate public disclosure with the reporter within 90 days of the initial report, or sooner where the vulnerability is actively exploited."
-    }
-  ]
-});
-
-// ../../shared/cradesk-core/src/content/templates/2026-08-14/technical-documentation.ts
-var TECHNICAL_DOCUMENTATION_TEMPLATE_2026_08_14 = documentTemplateSchema.parse({
-  type: "technical-documentation",
-  templateVer: "2026-08-14",
-  title: "Technical documentation skeleton (Annex VII)",
-  allowedFormats: ["markdown", "docx"],
-  sections: [
-    {
-      slug: "general-description",
-      heading: "General description of the product",
-      citation: craCitation("Annex VII, point 1"),
-      status: "gap-to-verify",
-      body: "Product: {{productName}}.\nVersions covered: {{productVersions}}.\nIntended purpose: [TO COMPLETE: intended purpose]\nUser information and instructions: [TO COMPLETE: reference to the published user documentation]"
-    },
-    {
-      slug: "design-development-vulnerability-handling",
-      heading: "Design, development, production and vulnerability handling",
-      citation: craCitation("Annex VII, point 2"),
-      status: "gap-to-verify",
-      body: "System architecture: [TO COMPLETE: description of the system architecture]\nSoftware bill of materials: [TO COMPLETE: attach the latest SBOM from Products]\nCoordinated vulnerability disclosure policy: see the CVD policy generated for {{vendorName}}.\nContact address for vulnerability reports: {{contactEmail|contact address}}\nSecure update distribution: [TO COMPLETE: description of the update distribution mechanism]"
-    },
-    {
-      slug: "risk-assessment",
-      heading: "Cybersecurity risk assessment",
-      citation: craCitation("Annex VII, point 3"),
-      status: "gap-to-verify",
-      body: "[TO COMPLETE: cybersecurity risk assessment against Annex I Part I]"
-    },
-    {
-      slug: "support-period",
-      heading: "Basis for the support period",
-      citation: craCitation("Annex VII, point 4"),
-      status: "gap-to-verify",
-      body: "[TO COMPLETE: the support period and how it was determined]"
-    },
-    {
-      slug: "harmonised-standards",
-      heading: "Harmonised standards applied",
-      citation: craCitation("Annex VII, point 5"),
-      status: "gap-to-verify",
-      body: "[TO COMPLETE: harmonised standards applied, in full or in part]"
-    },
-    {
-      slug: "test-reports",
-      heading: "Conformity test reports",
-      citation: craCitation("Annex VII, point 6"),
-      status: "gap-to-verify",
-      body: "[TO COMPLETE: conformity test reports]"
-    },
-    {
-      slug: "eu-declaration-of-conformity",
-      heading: "EU declaration of conformity",
-      citation: craCitation("Annex VII, point 7"),
-      status: "gap-to-verify",
-      body: "[TO COMPLETE: a copy of the EU declaration of conformity]"
-    },
-    {
-      slug: "sbom-on-request",
-      heading: "Software bill of materials on request",
-      citation: craCitation("Annex VII, point 8"),
-      status: "gap-to-verify",
-      body: "Provided on a reasoned request from a market surveillance authority."
-    }
-  ]
-});
-
-// ../../shared/cradesk-core/src/content/templates/2026-08-14/security-txt-fields.ts
-var SECURITY_TXT_TEMPLATE_2026_08_14 = {
-  templateVer: "2026-08-14",
-  contactObligation: craCitation("Annex I, Part II, point 6"),
-  contactField: securityTxtCitation("Section 2.5.3 (Contact)"),
-  expiresField: securityTxtCitation("Section 2.5.5 (Expires)"),
-  policyField: securityTxtCitation("Section 2.5.7 (Policy)"),
-  canonicalField: securityTxtCitation("Section 2.5.2 (Canonical)")
-};
-
-// ../../shared/cradesk-core/src/content/version.ts
-var contentKindSchema = external_exports.enum(["ruleset", "template"]);
-var CONTENT_VERSION_ENVELOPE_BASE = {
-  slug: external_exports.string().min(1),
-  // Sequence number the repository assigns on publish - SK is `V#<version>`.
-  version: external_exports.number().int().positive(),
-  // Ruleset.regVer / DocumentTemplate.templateVer, lifted out of the payload so a lookup
-  // by content identity doesn't have to parse it.
-  contentVer: external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  changelog: external_exports.string().min(1),
-  publishedAt: external_exports.string().datetime(),
-  publishedBy: external_exports.string().min(1)
-};
-var rulesetVersionEnvelopeSchema = external_exports.object({
-  kind: external_exports.literal("ruleset"),
-  ...CONTENT_VERSION_ENVELOPE_BASE,
-  payload: rulesetSchema
-});
-var templateVersionEnvelopeSchema = external_exports.object({
-  kind: external_exports.literal("template"),
-  ...CONTENT_VERSION_ENVELOPE_BASE,
-  payload: documentTemplateSchema
-});
-var contentVersionEnvelopeSchema = external_exports.discriminatedUnion("kind", [
-  rulesetVersionEnvelopeSchema,
-  templateVersionEnvelopeSchema
-]);
-
-// ../../shared/cradesk-core/src/content/vex/2026-08-17/justifications.ts
-var vexStatusValueSchema = external_exports.enum(["not_affected", "affected", "fixed", "under_investigation"]);
-var vexJustificationValueSchema = external_exports.enum([
-  "component_not_present",
-  "vulnerable_code_not_present",
-  "vulnerable_code_not_in_execute_path",
-  "vulnerable_code_cannot_be_controlled_by_adversary",
-  "inline_mitigations_already_exist"
-]);
-var vexStatusEntrySchema = external_exports.object({
-  value: vexStatusValueSchema,
-  name: localizedTextSchema,
-  citation: citationSchema,
-  status: contentStatusSchema
-});
-var vexJustificationEntrySchema = external_exports.object({
-  value: vexJustificationValueSchema,
-  name: localizedTextSchema,
-  // A plain-language gloss for a reader who has never seen the CISA document, never a
-  // quotation of it.
-  description: localizedTextSchema,
-  citation: citationSchema,
-  status: contentStatusSchema
-});
-var VEX_STATUSES = external_exports.array(vexStatusEntrySchema).length(4).parse([
-  {
-    value: "not_affected",
-    name: { en: "Not affected", pl: "Nie dotyczy" },
-    citation: openVexCitation("Status"),
-    status: "gap-to-verify"
-  },
-  {
-    value: "affected",
-    name: { en: "Affected", pl: "Dotyczy" },
-    citation: openVexCitation("Status"),
-    status: "gap-to-verify"
-  },
-  {
-    value: "fixed",
-    name: { en: "Fixed", pl: "Naprawione" },
-    citation: openVexCitation("Status"),
-    status: "gap-to-verify"
-  },
-  {
-    value: "under_investigation",
-    name: { en: "Under investigation", pl: "W trakcie analizy" },
-    citation: openVexCitation("Status"),
-    status: "gap-to-verify"
-  }
-]);
-var VEX_JUSTIFICATIONS = external_exports.array(vexJustificationEntrySchema).length(5).parse([
-  {
-    value: "component_not_present",
-    name: { en: "Component not present", pl: "Komponent nieobecny" },
-    description: {
-      en: "The vulnerable subcomponent is not included in this product.",
-      pl: "Podatny podkomponent nie wchodzi w sk\u0142ad tego produktu."
-    },
-    citation: cisaVexCitation("component_not_present"),
-    status: "gap-to-verify"
-  },
-  {
-    value: "vulnerable_code_not_present",
-    name: { en: "Vulnerable code not present", pl: "Podatny kod nieobecny" },
-    description: {
-      en: "The subcomponent is included, but the vulnerable code itself is not present.",
-      pl: "Podkomponent jest obecny, ale sam podatny kod nie znajduje si\u0119 w produkcie."
-    },
-    citation: cisaVexCitation("vulnerable_code_not_present"),
-    status: "gap-to-verify"
-  },
-  {
-    value: "vulnerable_code_not_in_execute_path",
-    name: { en: "Vulnerable code not in execute path", pl: "Podatny kod poza \u015Bcie\u017Ck\u0105 wykonania" },
-    description: {
-      en: "The vulnerable code exists, but the product never executes it in practice.",
-      pl: "Podatny kod istnieje, ale produkt nigdy go w praktyce nie wykonuje."
-    },
-    citation: cisaVexCitation("vulnerable_code_not_in_execute_path"),
-    status: "gap-to-verify"
-  },
-  {
-    value: "vulnerable_code_cannot_be_controlled_by_adversary",
-    name: {
-      en: "Vulnerable code cannot be controlled by an attacker",
-      pl: "Podatnego kodu atakuj\u0105cy nie kontroluje"
-    },
-    description: {
-      en: "The vulnerable code runs, but an attacker cannot influence the inputs needed to trigger it.",
-      pl: "Podatny kod jest wykonywany, ale atakuj\u0105cy nie ma wp\u0142ywu na dane potrzebne do jego wywo\u0142ania."
-    },
-    citation: cisaVexCitation("vulnerable_code_cannot_be_controlled_by_adversary"),
-    status: "gap-to-verify"
-  },
-  {
-    value: "inline_mitigations_already_exist",
-    name: { en: "Inline mitigations already exist", pl: "Zabezpieczenia ju\u017C wbudowane" },
-    description: {
-      en: "The product already contains a control that neutralises this specific vulnerability.",
-      pl: "Produkt zawiera ju\u017C mechanizm neutralizuj\u0105cy dok\u0142adnie t\u0119 podatno\u015B\u0107."
-    },
-    citation: cisaVexCitation("inline_mitigations_already_exist"),
-    status: "gap-to-verify"
-  }
-]);
-
-// ../../shared/cradesk-core/src/i18n/language.ts
-var languageSchema = external_exports.enum(["en", "pl"]);
-var LANGUAGES = languageSchema.options;
-
-// ../../shared/cradesk-core/src/sbom/package-key.ts
-var PYPI_PREFIX = "pkg:pypi/";
-function findVersionSeparatorIndex(purl) {
-  for (let i = purl.length - 1; i >= 0; i--) {
-    if (purl[i] === "@" && purl[i - 1] !== "/") {
-      return i;
-    }
-  }
-  return -1;
-}
-function normalizePypiName(pkgKey) {
-  if (!pkgKey.startsWith(PYPI_PREFIX)) {
-    return pkgKey;
-  }
-  return PYPI_PREFIX + pkgKey.slice(PYPI_PREFIX.length).replace(/[-_.]+/g, "-");
-}
-function toPackageKey(purl) {
-  const withoutSubpath = purl.split("#")[0];
-  const withoutQualifiers = withoutSubpath.split("?")[0];
-  const versionSeparatorIndex = findVersionSeparatorIndex(withoutQualifiers);
-  const withoutVersion = versionSeparatorIndex === -1 ? withoutQualifiers : withoutQualifiers.slice(0, versionSeparatorIndex);
-  return normalizePypiName(withoutVersion.toLowerCase());
-}
 
 // ../../shared/cradesk-core/src/sbom/coverage.ts
 var UNKNOWN_PURL_TYPE = "unknown";
@@ -13075,7 +12577,7 @@ var COVERAGE_BUCKET_TEXT_EN = {
 };
 var SOURCE_BOUNDARY_TEXT_EN = `Matching runs against OSV advisories for ${SUPPORTED_OSV_ECOSYSTEMS.join(
   ", "
-)}, with CISA KEV supplying the "actively exploited" flag and NVD only a CVSS score once a match exists. System packages (Debian, Ubuntu, Alpine), container images and anything without a purl are not matched.`;
+)}, with CISA KEV supplying the "actively exploited" flag and NVD only a CVSS score once a match exists. Debian and Ubuntu packages, images built on them and anything without a purl are not matched.`;
 var COVERAGE_REACH_TEXT_EN = "These counts describe what can be matched, not what has been found - an advisory that does not exist yet is nobody\u2019s coverage.";
 var SBOM_ERROR_TEXT_EN = {
   "input-too-large": "The SBOM is larger than this tool will read. Generate one SBOM per product rather than per monorepo.",
@@ -13325,71 +12827,11 @@ function firstIssuePath(error) {
   return issue === void 0 ? "unknown" : issue.path.join(".") || "document";
 }
 
-// ../../shared/cradesk-core/src/watch/evaluate.ts
-var needsReviewReasonSchema = external_exports.enum([
-  "component-version-missing",
-  "component-version-unparseable",
-  "advisory-range-unparseable",
-  "advisory-range-not-comparable",
-  "advisory-versions-unspecified"
-]);
-
-// ../../shared/cradesk-core/src/watch/kev.ts
-var kevEntrySchema = external_exports.object({
-  cveID: external_exports.string().regex(/^CVE-\d{4}-\d{4,}$/),
-  dateAdded: external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  knownRansomwareCampaignUse: external_exports.string()
-});
-var kevCatalogSchema = external_exports.object({
-  catalogVersion: external_exports.string().min(1),
-  dateReleased: external_exports.string().min(1),
-  vulnerabilities: external_exports.array(kevEntrySchema)
-});
-
-// ../../shared/cradesk-core/src/watch/osv-record.ts
-var osvPackageSchema = external_exports.object({
-  ecosystem: external_exports.string().min(1),
-  purl: external_exports.string().min(1).optional()
-});
-var osvRangeTypeSchema = external_exports.enum(["SEMVER", "ECOSYSTEM", "GIT"]);
-var osvRangeEventSchema = external_exports.object({
-  introduced: external_exports.string().optional(),
-  fixed: external_exports.string().optional(),
-  last_affected: external_exports.string().optional(),
-  limit: external_exports.string().optional()
-});
-var osvRangeSchema = external_exports.object({
-  type: osvRangeTypeSchema,
-  events: external_exports.array(osvRangeEventSchema).min(1)
-});
-var osvAffectedSchema = external_exports.object({
-  package: osvPackageSchema.optional(),
-  versions: external_exports.array(external_exports.string()).optional(),
-  ranges: external_exports.array(osvRangeSchema).optional()
-});
-var osvSeveritySchema = external_exports.object({
-  type: external_exports.string().min(1),
-  score: external_exports.string().min(1)
-});
-var osvRecordSchema = external_exports.object({
-  id: external_exports.string().min(1),
-  modified: external_exports.string().min(1),
-  aliases: external_exports.array(external_exports.string()).optional(),
-  summary: external_exports.string().optional(),
-  // Present and non-empty means the record was retracted by its source: existing
-  // matches must be deleted, never left standing with a stale status.
-  withdrawn: external_exports.string().optional(),
-  severity: external_exports.array(osvSeveritySchema).optional(),
-  affected: external_exports.array(osvAffectedSchema).optional(),
-  database_specific: external_exports.object({ severity: external_exports.string().optional() }).partial().optional()
-});
-var osvParseErrorCodeSchema = external_exports.enum(["not-json", "invalid-structure"]);
-
 // src/pr-comment.ts
 var import_promises = require("node:fs/promises");
 
 // src/version.ts
-var ACTION_VERSION = "1.3.1";
+var ACTION_VERSION = "1.4.0";
 
 // src/pr-comment.ts
 var MARKER = "<!-- cradesk-action -->";
