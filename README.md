@@ -1,8 +1,9 @@
 # CRA readiness report - GitHub Action
 
-Turns a CycloneDX or SPDX SBOM into a **Cyber Resilience Act readiness report** in your job
-summary: what your SBOM does and does not tell you, which CRA class your product falls into,
-and what the 11 September 2026 reporting obligation requires you to have in place.
+Turns a CycloneDX or SPDX software bill of materials (SBOM) into a **Cyber Resilience Act (CRA)
+readiness report** in your job summary: what your SBOM does and does not tell you, which CRA
+class your product falls into, and what the 11 September 2026 reporting obligation requires you
+to have in place.
 
 Free, no account required - the report is computed in the job and no data leaves the runner
 unless you opt into uploading to a CRA Desk panel (see below).
@@ -18,6 +19,25 @@ unless you opt into uploading to a CRA Desk panel (see below).
     sbom-path: sbom.json
     github-token: ${{ secrets.GITHUB_TOKEN }} # optional: also comment on the PR
 ```
+
+The action reads an SBOM and never generates one; `cdxgen` above is one option. The
+[SBOM generation guide](https://cradesk.eu/sbom) has a generate step for every ecosystem the
+vulnerability watch covers - Maven, Gradle, Python, Go, .NET, Rust, Ruby, PHP, Elixir and Alpine
+images among them.
+
+## What the report contains
+
+- **SBOM** - how many components carry a package URL (purl), a version and a licence, and
+  whether dependency relationships are recorded.
+- **Coverage** - how many components the vulnerability watch can match, by ecosystem, and what
+  falls outside its sources. [Watched ecosystems and sources](https://cradesk.eu/coverage).
+- **CRA scope** - product class and conformity route, from your `cradesk.yml` answers. The same
+  questions run in the [browser classifier](https://cradesk.eu/classifier).
+- **Readiness checklist** - the checks behind the Article 14 reporting obligation, each with its
+  legal source. [The checklist, explained](https://cradesk.eu/readiness).
+
+Background on the obligation itself:
+[Cyber Resilience Act reporting started 11 September 2026](https://cradesk.eu/articles/cra-reporting-starts-sept-11).
 
 ## Inputs
 
@@ -213,8 +233,8 @@ The hosted CRA Desk product (the classifier at cradesk, the panel, the reporting
 ## This is not legal advice
 
 The report is a compliance aid. The obligations rest with the manufacturer; vulnerability-source
-coverage is declared, never complete. Rules version and tool version are stamped on every
-report.
+coverage is declared, never complete. Every report is stamped with the tool version and the
+checklist version, and with the classification rules version whenever it carries a verdict.
 
 ---
 

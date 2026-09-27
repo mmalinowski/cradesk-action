@@ -1,0 +1,87 @@
+# Manual release: tags the main commit with the version the bundle carries and moves the major
+# tag users pin to (`@v1`). Unlike smoke.yml this file lives only in the standalone Action repo -
+# publish-repo.mjs copies an allowlist and never deletes, so a publish leaves it in place.
+name: release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write # push the tags
+  actions: read # read the smoke result for the commit being tagged
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      # The Run workflow button offers every branch; a tag cut elsewhere would ship code main
+      # has never seen.
+      - name: Require main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Run this workflow on main, not ${GITHUB_REF_NAME}."
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      # The version is read, not typed in: every report and user-agent is stamped with
+      # ACTION_VERSION, so a tag that disagreed with it would label one release as another.
+      - name: Read the bundle version
+        id: version
+        run: |
+          version=$(sed -nE 's/^var ACTION_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)";$/\1/p' dist/index.cjs)
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Expected exactly one ACTION_VERSION in dist/index.cjs, found '${version}'."
+            exit 1
+          fi
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          echo "major=v${version%%.*}" >> "$GITHUB_OUTPUT"
+
+      - name: Require a new, newest release
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          MAJOR: ${{ steps.version.outputs.major }}
+        run: |
+          remote_tags=$(git ls-remote --tags --refs origin | sed 's|.*refs/tags/||')
+          if grep -qxF "$TAG" <<< "$remote_tags"; then
+            echo "::error::$TAG already exists - bump the version in the monorepo and publish again. Release tags never move."
+            exit 1
+          fi
+          # Only the newest release of a major line may take its floating tag, so a stale
+          # dispatch cannot pull every @v1 user back to an older bundle.
+          newest=$(grep -E "^${MAJOR}\.[0-9]+\.[0-9]+$" <<< "$remote_tags" | sort -V | tail -n 1)
+          if [ -n "$newest" ] && [ "$(printf '%s\n' "$newest" "$TAG" | sort -V | tail -n 1)" != "$TAG" ]; then
+            echo "::error::$TAG is older than $newest, so $MAJOR stays where it is."
+            exit 1
+          fi
+
+      # Moving the major tag ships this bundle to every workflow that pins it on their next run,
+      # and smoke is the only test that runs the committed bundle on a real runner.
+      - name: Require a green smoke run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          smoke=$(gh run list --workflow smoke.yml --commit "$GITHUB_SHA" --limit 1 --json status,conclusion \
+            --jq '.[0] | if . == null then "missing" elif .status != "completed" then .status else .conclusion end')
+          if [ "$smoke" != success ]; then
+            echo "::error::smoke for ${GITHUB_SHA::7} is ${smoke} - wait for it or run it, then release."
+            exit 1
+          fi
+
+      - name: Tag and move the major tag
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          MAJOR: ${{ steps.version.outputs.major }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "$TAG" -m "Release $TAG"
+          git tag -fa "$MAJOR" -m "$TAG"
+          # Atomic, so users never see the release tag without the major tag, or the reverse.
+          git push --atomic origin "refs/tags/$TAG" "+refs/tags/$MAJOR"
+          echo "Tagged \`$TAG\` and moved \`$MAJOR\` to ${GITHUB_SHA::7}." >> "$GITHUB_STEP_SUMMARY"

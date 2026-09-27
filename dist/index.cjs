@@ -12409,21 +12409,23 @@ function assessReadiness(checklist, inventory, answers = {}) {
 // ../../shared/cradesk-core/src/report/compose-report.ts
 var CLASSIFIER_URL = "https://cradesk.eu/classifier";
 var SBOM_GUIDE_URL = "https://cradesk.eu/sbom";
+var COVERAGE_URL = "https://cradesk.eu/coverage";
+var READINESS_URL = "https://cradesk.eu/readiness";
+var PRODUCT_URL = "https://cradesk.eu";
 var DISCLAIMER_EN = "This report is a compliance aid, not legal advice. Article 14 obligations rest with the manufacturer; source coverage is declared, never complete.";
 function composeReport(input) {
   return {
     meta: input.meta,
-    // The classification's own rules version wins when there is one: it is the version the
-    // verdict was issued under, and a verdict shown against the wrong version is unusable
-    // evidence (liability boundary 3 in doc/06).
-    regVer: input.classification?.regVer ?? input.readiness.regVer,
     inventory: input.inventory,
     sbomError: input.sbomError,
     classification: input.classification,
     readiness: input.readiness,
     disclaimer: DISCLAIMER_EN,
     classifierUrl: CLASSIFIER_URL,
-    sbomGuideUrl: SBOM_GUIDE_URL
+    sbomGuideUrl: SBOM_GUIDE_URL,
+    coverageUrl: COVERAGE_URL,
+    readinessUrl: READINESS_URL,
+    productUrl: PRODUCT_URL
   };
 }
 
@@ -12635,7 +12637,7 @@ function sbomSection(document) {
     ""
   ];
 }
-function coverageSection(coverage) {
+function coverageSection(coverage, coverageUrl) {
   const lines = [
     "## Coverage",
     "",
@@ -12656,7 +12658,14 @@ function coverageSection(coverage) {
       ""
     );
   }
-  lines.push(SOURCE_BOUNDARY_TEXT_EN, "", COVERAGE_REACH_TEXT_EN, "");
+  lines.push(
+    SOURCE_BOUNDARY_TEXT_EN,
+    "",
+    COVERAGE_REACH_TEXT_EN,
+    "",
+    `Every watched ecosystem and source, and what each one cannot see: ${coverageUrl}`,
+    ""
+  );
   return lines;
 }
 function classificationSection(document) {
@@ -12691,17 +12700,26 @@ function classificationSection(document) {
   );
   return lines;
 }
+var asCode = (value) => `\`${value}\``;
+var asText = (value) => value;
+function versionStamp(document, format) {
+  const checklist = `checklist ${format(document.readiness.regVer)}`;
+  return document.classification === void 0 ? checklist : `classification rules ${format(document.classification.regVer)} \xB7 ${checklist}`;
+}
 function renderMarkdownReport(document) {
   const { readiness } = document;
   const lines = [
     "## CRA readiness report",
     "",
-    `${document.meta.productName === void 0 ? "Product" : `**${document.meta.productName}**`} \xB7 rules version \`${document.regVer}\` \xB7 generated ${document.meta.generatedAt}`,
+    `${document.meta.productName === void 0 ? "Product" : `**${document.meta.productName}**`} \xB7 ${versionStamp(
+      document,
+      asCode
+    )} \xB7 generated ${document.meta.generatedAt}`,
     "",
     `**${readiness.met} met \xB7 ${readiness.notMet} not met \xB7 ${readiness.unknown} unanswered** of ${readiness.items.length} checks for the 11 September 2026 reporting obligation.`,
     "",
     ...sbomSection(document),
-    ...document.inventory?.quality.ecosystems === void 0 ? [] : coverageSection(document.inventory.quality.ecosystems),
+    ...document.inventory?.quality.ecosystems === void 0 ? [] : coverageSection(document.inventory.quality.ecosystems, document.coverageUrl),
     ...classificationSection(document),
     "## Readiness checklist",
     "",
@@ -12717,11 +12735,13 @@ function renderMarkdownReport(document) {
     );
   }
   lines.push(
-    `Which of your watched components a CVE actually affects, tracked continuously: ${document.classifierUrl}`,
+    `What each check asks for, and the provision behind it: ${document.readinessUrl}`,
+    "",
+    `Which of your watched components a CVE actually affects, tracked continuously: ${document.productUrl}`,
     "",
     `---`,
     "",
-    `_cradesk-action ${document.meta.toolVersion} \xB7 rules ${document.regVer}. ${document.disclaimer}_`,
+    `_cradesk-action ${document.meta.toolVersion} \xB7 ${versionStamp(document, asText)}. ${document.disclaimer}_`,
     ""
   );
   return lines.join("\n");
@@ -12831,7 +12851,7 @@ function firstIssuePath(error) {
 var import_promises = require("node:fs/promises");
 
 // src/version.ts
-var ACTION_VERSION = "1.4.0";
+var ACTION_VERSION = "1.4.1";
 
 // src/pr-comment.ts
 var MARKER = "<!-- cradesk-action -->";
